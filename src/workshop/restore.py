@@ -1,0 +1,54 @@
+"""``workshop restore``: put r4's advertisements back to the baseline (instructor recovery)."""
+
+from __future__ import annotations
+
+import re
+
+from workshop import candidate, executor, lab, show
+from workshop.config import Settings
+
+_NETWORK = re.compile(r"^\s*network (\S+)\s*$", re.MULTILINE)
+
+
+def _advertised(readback: str) -> list[str]:
+    return _NETWORK.findall(readback)
+
+
+def run(settings: Settings, log) -> None:
+    path = settings.repo_root / "lab" / "restore" / "r4-bgp.eos"
+    lines = candidate.normalize(path.read_text())
+    host = lab.mgmt_ips(settings)[candidate.DEVICE]
+    want = [line.split()[-1] for line in lines if line.startswith("network ")]
+
+    # A hand edit can leave extra advertisements behind: retire anything the baseline does not advertise.
+    current = _advertised(executor.show(settings, host, "show running-config section router bgp"))
+    extras = [prefix for prefix in current if prefix not in want]
+    header = [line for line in lines if not line.startswith("network ")]
+    plan = tuple(header + [f"no network {prefix}" for prefix in extras] + [f"network {p}" for p in want])
+    show.napalm(log, candidate.DEVICE, f"{len(plan)} lines from lab/restore/r4-bgp.eos: {show.NAPALM_APPLY}")
+    show.note(log, "no prediction and no gate: restore is the break-glass path, which is why a new baseline must follow")
+    executor.apply(settings, candidate.DEVICE, host, plan)
+    # r4 is back at the baseline: an earlier deploy and its verify no longer describe the network, so the page must stop saying so.
+    for name in ("deploy.json", "verify.json"):
+        settings.state(name).unlink(missing_ok=True)
+
+    readback = _advertised(executor.show(settings, host, "show running-config section router bgp"))
+    missing = [prefix for prefix in want if prefix not in readback]
+    if missing:
+        raise RuntimeError(f"restore did not take: {missing} missing on r4")
+    left = [prefix for prefix in readback if prefix not in want]
+    if left:
+        raise RuntimeError(f"restore did not take: {left} still advertised on r4")
+    if extras:
+        log(f"  removed hand-added advertisements: {', '.join(extras)}")
+    log(f"  r4 was advertising: {', '.join(current) or 'nothing'}")
+    log(f"  r4 now advertises:  {', '.join(readback)}  (the baseline: the live service prefix and the two stale ones)")
+    # Exercise 1's change, if it was left in: r2's link to r4 back up (no change at all when it already is).
+    from workshop import link
+
+    try:
+        if link.change(settings, "up", None).strip():
+            log("  r2's link to r4 was down (exercise 1's change): brought back up")
+    except Exception as exc:  # noqa: BLE001 - r4 is restored either way; say what to do about r2
+        log(f"  could not check r2's link to r4 ({type(exc).__name__}): if exercise 1's change is still in, `workshop link up`")
+    log("  r4 advertisements restored; the old baseline no longer matches the network, so run the baseline steps (`workshop baseline collect` first) before predicting again")

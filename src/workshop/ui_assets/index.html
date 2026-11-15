@@ -1,0 +1,1085 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Know Before You Deploy — your lab</title>
+<style>
+/* Forward design tokens (gui/styles/color-palette.css, semantic-colors.css), light first. */
+:root {
+  --canvas: #f9f9f9; --raised: #fff; --group: #f2f2f2; --bar: #0a2538; --bar-txt: #fff;
+  --txt: #363636; --txt-2: #767676; --txt-3: #9f9f9f; --divider: #d9d9d9;
+  --accent: #0064a0; --accent-hover: #0073b8; --accent-bg: #def0f9; --mark: #ff3506;
+  --ok: #3f6d1b; --ok-bg: #dce9d1; --bad: #b5372a; --bad-bg: #f3cdc9; --warn: #b95900; --warn-bg: #fce4bf;
+  --stale: #9f9f9f; --live-edge: #579526;
+  --elev: 0 0 1px rgb(0 0 0 / 20%), 0 1px 2px rgb(0 0 0 / 10%);
+  --radius: 0.375rem;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #13181b; --raised: #1b2227; --group: #232c32; --bar: #0a2538; --bar-txt: #fff;
+    --txt: #d6d6d6; --txt-2: #bdbdbd; --txt-3: #a3a3a3; --divider: #3b464d;
+    --accent: #8dd6ee; --accent-hover: #b8e5f4; --accent-bg: #355263; --mark: #ff3506;
+    --ok: #92c968; --ok-bg: #3f4f32; --bad: #f27b82; --bad-bg: #5c383a; --warn: #f7b654; --warn-bg: #5d4a2c;
+    --stale: #576066; --live-edge: #92c968;
+    --elev: inset 0 0 0 1px rgb(255 255 255 / 10%), 0 4px 4px rgb(0 0 0 / 25%);
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--canvas); color: var(--txt); font: 14px/1.45 Roboto, "Segoe UI", system-ui, sans-serif; }
+header { background: var(--bar); color: var(--bar-txt); display: flex; align-items: center; gap: 16px; padding: 12px 20px; flex-wrap: wrap; }
+header img { height: 18px; color: #fff; }
+header h1 { font-size: 16px; font-weight: 500; margin: 0; }
+header .seat { margin-left: auto; font-size: 13px; opacity: .85; }
+header .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--live-edge); margin-right: 6px; }
+main { padding: 16px 20px 40px; max-width: 1400px; margin: 0 auto; }
+.card { background: var(--raised); border-radius: var(--radius); box-shadow: var(--elev); padding: 16px; }
+h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--txt-2); margin: 0 0 10px; }
+code, pre { font-family: "Roboto Mono", ui-monospace, Menlo, monospace; font-size: 12.5px; }
+code { background: var(--group); padding: 1px 5px; border-radius: 4px; }
+.muted { color: var(--txt-2); }
+
+/* The loop strip */
+.badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; } .badge { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--ok); color: var(--ok); }
+.loop { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+.stage { background: var(--raised); box-shadow: var(--elev); border-radius: var(--radius); padding: 10px 12px; border-top: 4px solid var(--divider); min-width: 0; }
+.stage .n { font-size: 11px; color: var(--txt-3); }
+.stage .label { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.stage .detail { font-size: 12px; color: var(--txt-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stage.done { border-top-color: var(--ok); } .stage.done .icon::before { content: "✓"; color: var(--ok); }
+.stage.failed { border-top-color: var(--bad); } .stage.failed .icon::before { content: "✕"; color: var(--bad); }
+.stage.active { border-top-color: var(--warn); } .stage.active .icon::before { content: "●"; color: var(--warn); }
+.stage.todo .icon::before { content: "○"; color: var(--txt-3); }
+.stage.next { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 16px; }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 1000px) { .grid { grid-template-columns: 1fr; } .loop { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* Next step */
+.next-card { border-left: 4px solid var(--accent); }
+.next-card .title { font-size: 18px; font-weight: 500; margin: 2px 0 6px; }
+.cmd { display: flex; align-items: center; gap: 8px; background: var(--group); border-radius: var(--radius); padding: 8px 10px; margin: 8px 0; }
+.cmd code { background: none; padding: 0; flex: 1; overflow-x: auto; white-space: nowrap; }
+button { font: inherit; border: 0; border-radius: var(--radius); padding: 6px 12px; cursor: pointer; background: var(--accent); color: #fff; }
+@media (prefers-color-scheme: dark) { button { color: #0a2538; } }
+button:hover { background: var(--accent-hover); }
+button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--divider); }
+button:disabled { opacity: .5; cursor: default; }
+
+/* Topology */
+svg.topo { width: 100%; height: auto; display: block; }
+.topo .edge { stroke: var(--divider); stroke-width: 3; fill: none; }
+.topo .edge.path { stroke: var(--live-edge); stroke-width: 5; }
+.topo .edge.broken { stroke: var(--bad); stroke-width: 4; stroke-dasharray: 8 6; }
+.topo .node rect { fill: var(--raised); stroke: var(--accent); stroke-width: 2; }
+.topo .node.host rect { stroke: var(--txt-3); }
+.topo .node.bad rect { stroke: var(--bad); fill: var(--bad-bg); }
+.topo .node.cause rect { stroke: var(--warn); fill: var(--warn-bg); stroke-width: 3; }
+.topo .edge.flow { stroke: var(--live-edge); stroke-width: 5; stroke-dasharray: 10 8; animation: flow 1.2s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -18; } }
+.topo text.note { font-size: 11.5px; font-weight: 600; }
+.topo text.caption { font-size: 12.5px; font-weight: 500; fill: var(--txt-2); }
+@media (prefers-reduced-motion: reduce) { .topo .edge.flow { animation: none; } }
+.topo text { fill: var(--txt); font-size: 13px; font-weight: 600; text-anchor: middle; }
+.topo text.sub { font-size: 11px; font-weight: 400; fill: var(--txt-2); }
+.topo .adv { font-size: 11px; font-weight: 500; text-anchor: start; }
+.topo .adv.live { fill: var(--ok); } .topo .adv.stale { fill: var(--warn); } .topo .adv.retired { fill: var(--txt-3); text-decoration: line-through; }
+.topo .adv.danger { fill: var(--bad); text-decoration: line-through; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--txt-2); margin-top: 6px; }
+.legend i { display: inline-block; width: 18px; height: 4px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+
+/* Tables and chips */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--divider); vertical-align: top; }
+th { font-size: 12px; color: var(--txt-2); font-weight: 500; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.pill.PASS, .pill.MATCH, .pill.SUCCESS { background: var(--ok-bg); color: var(--ok); }
+.pill.FAIL, .pill.MISMATCH, .pill.FAILURE, .pill.ERROR { background: var(--bad-bg); color: var(--bad); }
+.pill.INCONCLUSIVE, .pill.STALE, .pill.PENDING, .pill.IN_PROGRESS { background: var(--warn-bg); color: var(--warn); }
+.banner { padding: 8px 12px; border-radius: var(--radius); margin-bottom: 10px; font-size: 13px; }
+.banner.warn { background: var(--warn-bg); color: var(--warn); }
+.banner.bad { background: var(--bad-bg); color: var(--bad); }
+.banner.ok { background: var(--ok-bg); color: var(--ok); }
+
+/* Advisers and AI */
+.role { border-left: 3px solid var(--divider); padding: 2px 0 2px 10px; margin: 10px 0; }
+.role b.name { display: block; font-size: 12px; color: var(--txt-2); text-transform: uppercase; letter-spacing: .04em; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.chip { background: var(--accent-bg); color: var(--accent); border-radius: 14px; padding: 4px 10px; font-size: 12px; cursor: pointer; border: 0; }
+.chip:hover { outline: 1px solid var(--accent); background: var(--accent-bg); }
+textarea { width: 100%; min-height: 56px; font: inherit; padding: 8px; border-radius: var(--radius); border: 1px solid var(--divider); background: var(--raised); color: var(--txt); resize: vertical; }
+select { font: inherit; padding: 5px; border-radius: var(--radius); border: 1px solid var(--divider); background: var(--raised); color: var(--txt); }
+.answer { background: var(--group); border-radius: var(--radius); padding: 10px 12px; margin-top: 10px; font-size: 13px; }
+.answer .q { font-weight: 600; margin-bottom: 4px; }
+.answer .meta { font-size: 11px; color: var(--txt-3); margin-top: 6px; }
+.spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--divider); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; vertical-align: -2px; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.tip { font-size: 13px; min-height: 3.2em; transition: opacity .4s; }
+.tip b { color: var(--accent); }
+/* Chat */
+.chat { display: flex; flex-direction: column; min-height: 520px; max-height: 78vh; padding: 0; overflow: hidden; }
+.chat-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--divider); flex-wrap: wrap; }
+.chat-head h2 { margin: 0; flex: 1; }
+.threads { display: flex; gap: 6px; overflow-x: auto; padding: 8px 16px; border-bottom: 1px solid var(--divider); }
+.thread-tab { background: var(--group); color: var(--txt-2); border-radius: 14px; padding: 3px 10px; font-size: 12px; white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.thread-tab.on { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.thread-tab:hover { background: var(--accent-bg); }
+.convo { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.bubble { max-width: 92%; border-radius: 12px; padding: 10px 14px; font-size: 13.5px; line-height: 1.5; }
+.bubble.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+@media (prefers-color-scheme: dark) { .bubble.user { color: #0a2538; } }
+.bubble.ai { align-self: flex-start; background: var(--group); border-bottom-left-radius: 4px; }
+.bubble.ai .who { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--txt-2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+.bubble.ai .who::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--mark); }
+.bubble table { margin: 6px 0; font-size: 12.5px; background: var(--raised); border-radius: 6px; }
+.bubble th, .bubble td { padding: 4px 8px; }
+.bubble h4 { margin: 10px 0 4px; font-size: 13px; }
+.bubble ul, .bubble ol { margin: 4px 0; padding-left: 20px; }
+.bubble pre { background: var(--raised); padding: 8px; border-radius: 6px; overflow-x: auto; margin: 6px 0; }
+.bubble p { margin: 4px 0; }
+.tools { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.ai-steps { margin: 8px 0 0; padding-left: 20px; font-size: 12px; color: var(--txt-2); }
+.ai-how { margin-top: 8px; font-size: 12px; }
+.ai-how summary { cursor: pointer; }
+.ai-how pre { white-space: pre-wrap; max-height: 260px; overflow: auto; font-size: 11px; margin: 4px 0; }
+.tool { font-size: 10.5px; background: var(--raised); color: var(--txt-2); border: 1px solid var(--divider); border-radius: 10px; padding: 1px 7px; }
+.trail { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin:10px 0 6px; } .trail .sep { color:var(--txt-3); }
+.crumb { border:1px solid var(--divider); background:var(--raised); color:var(--txt); border-radius:999px; padding:3px 11px; font-size:12.5px; cursor:pointer; }
+.crumb .n { color:var(--txt-3); margin-right:5px; } .crumb.done { border-color:var(--ok); } .crumb.done .n { color:var(--ok); }
+.crumb.cur { outline:2px solid var(--accent); outline-offset:1px; } .crumb.sel { background:var(--accent-bg); }
+.cdetail { border:1px solid var(--divider); border-left:4px solid var(--accent); border-radius:8px; padding:10px 12px; margin:6px 0 12px; background:var(--raised); }
+.cdetail h4 { margin:0 0 6px; font-size:14px; } .clevel { margin:6px 0; font-size:13.5px; } .clevel b { color:var(--accent); margin-right:6px; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; }
+.cdetail .crow { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; } .cdetail .hint-line { font-size:12.5px; color:var(--txt-2); background:var(--group); border-radius:6px; padding:5px 8px; margin-top:5px; } .cdetail .hint-line b { color:var(--accent); margin-right:6px; }
+.hint { font-size: 12px; border-left: 3px solid var(--accent); padding: 4px 8px; margin-top: 8px; color: var(--txt-2); }
+.composer { border-top: 1px solid var(--divider); padding: 10px 16px 12px; }
+.composer textarea { min-height: 44px; }
+.composer .row { display: flex; gap: 8px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+.empty { color: var(--txt-2); text-align: center; margin: auto; max-width: 360px; }
+
+/* Challenges */
+.chals { list-style:none; margin:0; padding:0; }
+.chal { display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-top:1px solid var(--divider); }
+.chal:first-child { border-top:0; }
+.chal .tick { flex:none; width:20px; height:20px; border-radius:50%; border:2px solid var(--divider); margin-top:1px; display:grid; place-items:center; font-size:12px; color:#fff; }
+.chal.done .tick { background:var(--ok); border-color:var(--ok); } .chal.done .tick::after { content:"✓"; }
+.chal.next .tick { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg); }
+.chal .cbody { flex:1; min-width:0; } .chal .ctitle { font-weight:500; } .chal.done .ctitle { color:var(--txt-2); text-decoration:line-through; text-decoration-color:var(--txt-3); }
+.chal .hint-line { font-size:12.5px; color:var(--txt-2); background:var(--group); border-radius:6px; padding:5px 8px; margin-top:5px; }
+.chal .hint-line b { color:var(--accent); margin-right:6px; }
+.chal button.hint-btn { font-size:12px; padding:3px 9px; flex:none; }
+.chal.flash { animation: flash 2.2s ease-out; } @keyframes flash { 0% { background:var(--ok-bg); } 100% { background:transparent; } }
+details#chal-stretch { margin-top:8px; border-top:1px solid var(--divider); padding-top:8px; } details#chal-stretch summary { cursor:pointer; color:var(--accent); font-weight:500; }
+@media (prefers-reduced-motion: reduce) { .chal.flash { animation:none; } }
+
+/* Guided step */
+.stage { cursor: pointer; } .stage.sel { outline: 2px solid var(--accent); outline-offset: -2px; }
+.why-it-matters { margin:8px 0 0; padding:8px 10px; border-left:3px solid var(--accent); background:var(--group); border-radius:0 var(--radius) var(--radius) 0; font-size:13px; }
+.nafrow { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:2px 0 8px; font-size:12px; color:var(--txt-2); }
+.naf { background:var(--accent-bg); color:var(--accent); border-radius:12px; padding:2px 10px; font-weight:600; cursor:help; }
+.gsec { border-top:1px solid var(--divider); margin-top:14px; padding-top:12px; }
+.gsec h3 { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--txt-2); margin:0 0 8px; font-weight:600; }
+.quiz .q { font-weight:500; margin-bottom:6px; }
+.quiz label { display:block; padding:6px 10px; margin:4px 0; border:1px solid var(--divider); border-radius:var(--radius); cursor:pointer; background:var(--raised); }
+.quiz label:hover { border-color:var(--accent); }
+.quiz label.right { background:var(--ok-bg); border-color:var(--ok); } .quiz label.wrong { background:var(--warn-bg); border-color:var(--warn); }
+.quiz .why { font-size:13px; background:var(--group); border-radius:var(--radius); padding:8px 10px; margin-top:6px; }
+.runrow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:6px 0; }
+.runrow .note { font-size:12px; color:var(--txt-2); flex-basis:100%; margin-top:-2px; }
+.out .call { color:#7fb0ff; } .out .callbad { color:#ff8a80; } .out .callnote { color:#8aa0a8; }
+.out details.hx > summary { display:block; list-style:none; cursor:pointer; } .out details.hx > summary::-webkit-details-marker { display:none; }
+.out .hxn { color:#8aa0a8; } .out .hxn::before { content:"▸ "; } .out details[open] > summary > .hxn::before { content:"▾ "; }
+.out .hxs { margin:2px 0 4px 3em; padding-left:8px; border-left:2px solid #2b3a40; } .out .hxr { color:#e0c080; }
+.out .hxb { margin:2px 0 6px 1.2em; color:#b8c4c8; } .out .hxh { color:#e0c080; }
+.calls-card .out { max-height:220px; } .calls-card summary { cursor:pointer; } .calls-card h2 { display:inline; margin:0; }
+.out { background:#0f1416; color:#d6d6d6; border-radius:var(--radius); padding:10px; max-height:300px; overflow:auto; white-space:pre-wrap; font-size:12px; margin-top:8px; }
+.facts { margin:0; padding-left:18px; } .facts li { margin:3px 0; }
+.builder label { display:flex; gap:8px; align-items:flex-start; padding:6px 0; }
+.builder small { color:var(--txt-2); display:block; }
+input[type=text] { font:inherit; padding:6px 8px; border-radius:var(--radius); border:1px solid var(--divider); background:var(--raised); color:var(--txt); }
+.art { margin:6px 0; border:1px solid var(--divider); border-radius:var(--radius); background:var(--raised); }
+.art > summary { cursor:pointer; padding:7px 10px; font-weight:500; } .art > summary code { margin-left:6px; font-weight:400; }
+.art pre { margin:0; padding:10px; background:var(--group); max-height:340px; overflow:auto; white-space:pre; border-top:1px solid var(--divider); }
+.art .none { padding:8px 10px; color:var(--txt-2); border-top:1px solid var(--divider); }
+.catch { border:1px dashed var(--divider); border-radius:var(--radius); padding:8px 10px; }
+button.warn { background:var(--warn); color:#fff; } @media (prefers-color-scheme: dark) { button.warn { color:#13181b; } }
+.pace { padding:8px 12px; border-radius:var(--radius); margin:0 0 10px; font-size:13px; }
+.pace.ok { background:var(--ok-bg); color:var(--ok); } .pace.behind { background:var(--warn-bg); color:var(--warn); }
+abbr.g { text-decoration:underline dotted var(--txt-3); cursor:help; }
+.lane-item { border-top:1px solid var(--divider); padding:10px 0; } .lane-item:first-of-type { border-top:0; }
+.lane-item .lv { font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-bg); border-radius:10px; padding:1px 8px; margin-right:6px; }
+.lane-item .lt { font-weight:500; } .lane-item .why { color:var(--txt-2); font-size:13px; margin:3px 0 6px; }
+.lane-item.done .lt::after { content:" ✓"; color:var(--ok); }
+details.optai { background:transparent; } details.optai > summary { cursor:pointer; color:var(--accent); font-weight:500; padding:4px 2px; }
+.termline { font-size:12px; color:var(--txt-2); } .termline code { font-size:12px; }
+.dsum { font-weight:500; margin:2px 0 6px; } .dwhy { color:var(--txt-2); font-size:13px; margin-bottom:6px; }
+.dtab { max-height:300px; overflow:auto; border:1px solid var(--divider); border-radius:var(--radius); } .dtab table { font-size:12.5px; } .dtab th { position:sticky; top:0; background:var(--raised); }
+.dtab td.DELETED, .dtab td.ADDED, .dtab td.MODIFIED { font-weight:600; } .dtab td.DELETED { color:var(--bad); } .dtab td.ADDED { color:var(--ok); } .dtab td.MODIFIED { color:var(--warn); }
+.dnote { font-size:12px; color:var(--txt-2); margin-top:4px; } details.raw > summary { cursor:pointer; font-size:12px; color:var(--accent); margin-top:4px; } details.raw pre { max-height:260px; overflow:auto; background:var(--group); padding:8px; border-radius:var(--radius); }
+.term { background:var(--group); border-radius:var(--radius); padding:8px 10px; font-size:13px; }
+footer { text-align: center; font-size: 12px; color: var(--txt-3); margin-top: 24px; }
+</style>
+</head>
+<body>
+<header>
+  <img src="/logo.svg" alt="Forward Networks">
+  <h1>Know Before You Deploy</h1>
+  <span class="seat"><span class="dot"></span><span id="seat">…</span></span>
+</header>
+<main>
+  <div class="badges" id="badges" aria-label="What you have done" hidden></div>
+  <section class="loop" id="loop" aria-label="The change loop"></section>
+  <div class="grid">
+    <div class="col">
+      <section class="card next-card" id="next" aria-live="polite"><h2>Your lab</h2><div class="muted"><span class="spinner"></span>Reading your lab… the first look takes a few seconds.</div></section>
+      <section class="card">
+        <h2>Your network</h2>
+        <svg class="topo" id="topo" viewBox="0 0 760 270" role="img" aria-label="Lab topology"></svg>
+        <div class="legend">
+          <span><i style="background:var(--live-edge)"></i>service path (TCP 8080)</span>
+          <span><i style="background:var(--bad)"></i>broken in the prediction</span>
+          <span style="color:var(--ok)">■ live advertisement</span>
+          <span style="color:var(--warn)">■ stale advertisement</span>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Prediction — judged by Forward Predict and the requirements</h2>
+        <div id="prediction"></div>
+      </section>
+      <section class="card" id="verify-card" hidden>
+        <h2>Verify — predicted vs collected</h2>
+        <div id="verify"></div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="card" id="chal-card">
+        <h2>Challenges <span class="muted" style="text-transform:none;font-weight:400;letter-spacing:0" id="chal-sum"></span></h2>
+        <ul class="chals" id="chals-core"></ul>
+        <details id="chal-stretch"><summary>Stretch challenges <span class="muted" id="stretch-sum"></span></summary><ul class="chals" id="chals-stretch"></ul></details>
+      </section>
+      <section class="card" id="lane"></section>
+      <details class="card calls-card" id="calls-card" open>
+        <summary><h2>What just ran <span class="muted" style="text-transform:none;font-weight:400;letter-spacing:0" id="calls-n"></span></h2></summary>
+        <div class="muted" style="font-size:12px;margin:6px 0">Every call this page makes for itself: to Forward, your routers, Docker or GitHub. A step you run shows its own calls in its Output, each marked <code>→</code> or <code>$</code>. Every SDK call opens to the HTTP requests it made: method, path, body, status, time, and the start of the response. Secrets are masked.</div>
+        <pre class="out" id="calls-out">nothing yet</pre>
+      </details>
+      <details class="optai" id="optai"><summary>Optional: Forward AI explains and advises (it never decides)</summary>
+      <div class="col" style="margin-top:10px">
+      <section class="card">
+        <h2>Forward AI advisers <span class="muted" style="text-transform:none;font-weight:400">— they advise, Predict decides</span></h2>
+        <div id="advice"></div>
+      </section>
+      <section class="card chat">
+        <div class="chat-head">
+          <h2>Forward AI</h2>
+          <select id="snap" title="Which snapshot a new conversation is grounded in"><option value="baseline">about the baseline</option><option value="predicted">about the prediction</option><option value="post">about the network after the change</option></select>
+          <button class="ghost" id="new-chat">New conversation</button>
+        </div>
+        <div class="threads" id="threads"></div>
+        <div class="convo" id="convo"></div>
+        <div class="composer">
+          <div class="chips" id="prompts"></div>
+          <textarea id="question" placeholder="Ask about your network… (Enter to send, Shift+Enter for a new line)" maxlength="1000"></textarea>
+          <div class="row"><button id="ask">Send</button><span class="muted" id="ask-note"></span></div>
+        </div>
+      </section>
+      </div></details>
+      <section class="card">
+        <h2>Tip</h2>
+        <div class="tip" id="tip"></div>
+      </section>
+      <section class="card">
+        <h2>Intent</h2>
+        <div id="intent" class="muted"></div>
+      </section>
+    </div>
+  </div>
+  <footer>Local to your Codespace. Every button runs the same <code>workshop</code> command you could type, and deploy always needs you to type the hash.</footer>
+</main>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+// Inline markdown on already-escaped text: bold, italics, code.
+const inline = (s) => s.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*]+)\*/g, "$1<i>$2</i>").replace(/`([^`]+)`/g, "<code>$1</code>");
+// Small, safe markdown for Forward AI answers: everything is escaped first, then block structure
+// (tables, lists, headings, code fences, paragraphs) is rebuilt. No raw HTML survives.
+function md(src) {
+  const lines = esc(src).split("\n"), out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith("```")) {
+      const code = [];
+      for (i++; i < lines.length && !lines[i].startsWith("```"); i++) code.push(lines[i]);
+      out.push(`<pre><code>${code.join("\n")}</code></pre>`);
+    } else if (/^\s*\|.*\|\s*$/.test(line) && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1] || "")) {
+      const cells = (l) => l.trim().replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim()));
+      const head = cells(line), rows = [];
+      for (i += 2; i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i]); i++) rows.push(cells(lines[i]));
+      i--;
+      out.push(`<table><thead><tr>${head.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`);
+    } else if (/^\s*([-*]|\d+[.)])\s+/.test(line)) {
+      const ordered = /^\s*\d/.test(line), items = [];
+      for (; i < lines.length && /^\s*([-*]|\d+[.)])\s+/.test(lines[i]); i++) items.push(inline(lines[i].replace(/^\s*([-*]|\d+[.)])\s+/, "")));
+      i--;
+      out.push(`<${ordered ? "ol" : "ul"}>${items.map((x) => `<li>${x}</li>`).join("")}</${ordered ? "ol" : "ul"}>`);
+    } else if (/^#{1,4}\s/.test(line)) {
+      out.push(`<h4>${inline(line.replace(/^#+\s*/, ""))}</h4>`);
+    } else if (line.trim()) {
+      out.push(`<p>${inline(line)}</p>`);
+    }
+  }
+  return out.join("");
+}
+
+const TIPS = [
+  "<b>PASS is the only green.</b> FAIL, ERROR, INCONCLUSIVE and STALE all block deployment. An empty result is never a pass.",
+  "<b>Forward AI advises, Predict decides.</b> Ask a chat why a prediction failed with no context and it may blame the wrong router. The requirements, evaluated on the predicted network, are the judge.",
+  "<b>Same bytes, start to finish.</b> The exact candidate lines Predict evaluated are the ones NAPALM sends to r4. Deploy checks the hash.",
+  "<b>STALE is a feature.</b> If anything changed since the baseline — a newer snapshot, or someone edited a router — deploy refuses. Take a new baseline and predict again.",
+  "<b>MGMT-DENY is a requirement too.</b> Safe changes keep what must stay blocked. TCP 2222 must be refused by r1's ACL, not merely unreachable.",
+  "<b>Forward AI answers one question at a time for you.</b> While it thinks, read the evidence: the prediction table shows every requirement and what Forward observed.",
+  "<b>The Author drafts, the scope check guards.</b> Anything drafted by Forward AI must be only <code>no network &lt;prefix&gt;</code> lines on r4, or it is rejected before prediction.",
+  "<b>The Reviewer is fast.</b> The forward/advice check on your PR summarises what your change alters and what it would affect, in seconds.",
+];
+
+let state = null, tipIndex = Math.floor(Math.random() * TIPS.length);
+
+const currentKey = () => selected || (state && (state.stages.find((x) => x.state !== "done") || {}).key) || "done";
+let prMsg = "Retire r4's stale advertisements", prNote = "";
+let depPr = "", depSha = "";  // what was typed in the deploy form: kept when the page redraws after each step
+let lastLineAt = Date.now();
+const WAITING = ["Good time to refill your coffee.", "Somewhere a very patient computer is doing real work. Hang tight.", "Slow here is the point: a minute of checking beats an outage.", "Routers, models and CI all take a moment. That is the job.", "Predict never guesses. It computes, and computing takes a moment."];
+const QUIET_AFTER = (Number(new URLSearchParams(location.search).get("quiet")) || 30) * 1000;  // ?quiet=3 shortens it for a preview
+let catchAsk = null, guide = null, selected = null, job = null, jobPoll = null, answered = {}, outLines = [], builderSel = null;
+
+async function loadGuide() { try { guide = await (await fetch("/api/guide")).json(); } catch { guide = null; } }
+
+/* Badges: earned from the same records the page shows, never a gate. Once earned they stay on this browser, so a restore
+   (which starts the loop again) does not take them away. */
+function renderBadges(s) {
+  try { drawBadges(s); } catch (e) { $("badges").hidden = true; }  // a display extra must never stop the rest of the page
+}
+function drawBadges(s) {
+  const key = `ac6-badges:${s.lab_id || ""}`;
+  let kept = {};
+  try { kept = JSON.parse(localStorage.getItem(key) || "{}"); } catch (e) { kept = {}; }
+  if (!kept || typeof kept !== "object" || Array.isArray(kept)) kept = {};
+  for (const b of s.badges || []) if (!(b.key === "caught" && kept.caught)) kept[b.key] = b;  // keep the first red's time
+  // The fix is often pushed onto the red pull request, which then drops the red from GitHub's list: a green after the kept red still counts.
+  if (!kept.fixed && kept.caught && kept.caught.at && s.green_at && s.green_at > kept.caught.at)
+    kept.fixed = { key: "fixed", label: "Fixed it", why: "The gate said no to a change of yours, and later one went green." };
+  try { localStorage.setItem(key, JSON.stringify(kept)); } catch (e) { /* private window: show this load's only */ }
+  const order = ["baseline", "caught", "fixed", "shipped", "match"], list = order.filter((k) => kept[k]).map((k) => kept[k]);
+  const box = $("badges");
+  box.hidden = list.length === 0;
+  box.innerHTML = list.map((b) => `<span class="badge" title="${esc(b.why)}">✓ ${esc(b.label)}</span>`).join("");
+}
+
+function renderLoop(stages) {
+  const nextKey = (stages.find((s) => s.state !== "done") || {}).key || "done";
+  const key = selected || nextKey;
+  $("loop").innerHTML = stages.map((s, i) => `
+    <div class="stage ${s.state}${s.key === nextKey ? " next" : ""}${s.key === key ? " sel" : ""}" data-k="${esc(s.key)}" title="${esc(s.hint)}" tabindex="0" role="button">
+      <div class="n">${i + 1}</div>
+      <div class="label"><span class="icon"></span>${esc(s.label)}</div>
+      <div class="detail">${esc(s.detail)}</div>
+    </div>`).join("");
+  document.querySelectorAll(".stage").forEach((el) => {
+    el.onclick = () => { selected = el.dataset.k === nextKey ? null : el.dataset.k; guideSig = ""; renderLoop(state.stages); renderGuide(state, key === el.dataset.k ? key : el.dataset.k); };
+    el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); el.click(); } };
+  });
+  renderGuide(state, key);
+}
+
+/* Pace: only on the day. Compares the core challenges done with how many are due by now (Tucson time). */
+function paceHtml(s) {
+  try { return paceHtmlUnsafe(s); } catch { return ""; }  // a bad ?now= must never stop the page
+}
+function paceHtmlUnsafe(s) {
+  const pc = guide && guide.pace, p = s.progress;
+  if (!pc || !p) return "";
+  const q = new URLSearchParams(location.search).get("now");  // ?now=2026-11-16T10:50 lets a proctor preview this
+  const now = q ? new Date(q + ":00-07:00") : new Date();
+  if (isNaN(now)) return "";
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: pc.tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now).map((x) => [x.type, x.value]));
+  if (`${parts.year}-${parts.month}-${parts.day}` !== pc.date) return "";
+  const hm = `${parts.hour}:${parts.minute}`;
+  if (hm < pc.start || hm >= pc.end) return "";
+  const due = pc.due.filter(([t]) => t <= hm).map(([, id]) => id);
+  const done = new Set(p.challenges.filter((c) => c.done).map((c) => c.id));
+  const late = due.filter((id) => !done.has(id));
+  if (!late.length) return `<div class="pace ok">On pace. ${due.length} of ${pc.due.length} milestones are due by now, and you have them.</div>`;
+  const title = (id) => (p.challenges.find((c) => c.id === id) || {}).title || id;
+  const next = p.next ? title(p.next) : "", first = title(late[0]);
+  const lead = next && next !== first ? `Most of the room has got as far as <i>${esc(first)}</i>. Do only the must-do next: <b>${esc(next)}</b>.` : `Most of the room has reached <i>${esc(first)}</i>. That is your must-do now.`;
+  return `<div class="pace behind"><b>A little behind, and that's fine.</b> ${lead} Skip the extras for now. If you are stuck, use <b>Catch me up</b> at the bottom of this card.</div>`;
+}
+
+/* Glossary: the first time a term appears in a card, underline it with its definition on hover. */
+function glossarize(root) {
+  const terms = guide && guide.terms;
+  if (!terms) return;
+  const names = Object.keys(terms).sort((a, b) => b.length - a.length);
+  const re = new RegExp(`\\b(${names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`);
+  const seen = new Set(), skip = new Set(["PRE", "CODE", "BUTTON", "INPUT", "LABEL", "SUMMARY", "TEXTAREA", "ABBR", "H2", "H3"]);
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => {
+    for (let e = n.parentElement; e && e !== root; e = e.parentElement) if (skip.has(e.tagName) || e.classList.contains("quiz")) return NodeFilter.FILTER_REJECT;
+    return n.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT; } });
+  const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const n of nodes) {
+    let text = n.nodeValue, m, frag = null, last = 0;
+    const local = new RegExp(re.source, "g");
+    while ((m = local.exec(text))) {
+      const key = names.find((x) => x === m[1]);
+      if (!key || seen.has(key.toLowerCase())) continue;
+      seen.add(key.toLowerCase());
+      frag = frag || document.createDocumentFragment();
+      frag.append(text.slice(last, m.index));
+      const a = document.createElement("abbr"); a.className = "g"; a.title = terms[key]; a.textContent = m[1]; frag.append(a);
+      last = m.index + m[1].length;
+    }
+    if (frag) { frag.append(text.slice(last)); n.replaceWith(frag); }
+  }
+}
+
+/* The "go further" lane: deterministic challenges first, Forward AI ones folded away as optional. */
+let laneSig = "";
+function renderLane(s) {
+  if (!guide || !s.progress) return;
+  const done = new Set(s.progress.challenges.filter((c) => c.done).map((c) => c.id)), busy = s.job && !s.job.done;
+  const sig = JSON.stringify([[...done], busy, s.stages.map((x) => x.state)]);
+  if (sig === laneSig && $("lane").children.length) return;
+  const a = document.activeElement; if (a && $("lane").contains(a) && a.tagName === "INPUT" && a.type === "text") return;
+  laneSig = sig;
+  const core = s.progress.core_done >= s.progress.core_total;
+  const item = (it) => {
+    let body = "";
+    if (it.kind === "explore") {
+      body = `<div class="runrow"><select id="ex-topic"><option value="inventory">Devices</option><option value="topology">Topology (links)</option><option value="interfaces">Interfaces</option><option value="routes">Routes</option><option value="diff">Route changes (before and after)</option><option value="vulns">CVEs</option><option value="blast">Blast radius (from a device, to a prefix)</option><option value="checks">Posture: Forward's own checks</option></select>
+        <select id="ex-snap"><option value="baseline">baseline</option><option value="predicted">predicted</option><option value="post">after deploy</option></select>
+        <select id="ex-against"><option value="predicted">compared with predicted</option><option value="post">compared with after deploy</option></select></div>
+        <div class="runrow"><input type="text" id="ex-device" size="8" placeholder="device (r1)"> <input type="text" id="ex-prefix" size="16" placeholder="prefix (10.20.20.0/24)"> <button id="ex-go">Show</button></div>
+        <div class="termline">In the terminal: <code>workshop data routes --prefix 10.20.20.0/24</code> (add <code>--json</code> for the raw answer)</div><div id="ex-out"></div>`;
+    } else if (it.kind === "own") {
+      body = `<div class="runrow"><input type="text" id="rq-id" size="12" placeholder="NAME" value="HTTPS-DENY"> <input type="text" id="rq-port" size="6" placeholder="port" value="8443" inputmode="numeric"> <select id="rq-expect"><option value="deny">must be blocked</option><option value="permit">must work</option></select> <input type="text" id="rq-title" size="26" placeholder="title" value="HTTPS stays blocked at r1"></div>
+        <div class="runrow"><button id="rq-write" ${busy ? "disabled" : ""}>Write my requirement</button><button class="ghost" id="rq-predict" ${busy ? "disabled" : ""}>Predict with my requirements</button></div>
+        <div class="termline">In the terminal: copy <code>requirements/candidate.yml</code> to <code>requirements/mine.yml</code>, add it, then the predict steps with <code>--requirements requirements/mine.yml</code> (on <code>changeset</code> and <code>check</code>)</div><div id="rq-note" class="muted"></div>`;
+    } else if (it.kind === "chat") {
+      body = `<div class="runrow"><button class="ghost" data-lane-chat ${""}>Open the chat</button></div>`;
+    } else {
+      body = `<div class="runrow"><button class="ghost" data-lane-step="${esc(it.step)}" ${busy ? "disabled" : ""}>${esc(it.label)}</button></div>${it.note ? `<div class="muted" style="font-size:12px">${esc(it.note)}</div>` : ""}<div class="termline">In the terminal: <code>${esc(it.cmd)}</code></div>`;
+    }
+    return `<div class="lane-item${done.has(it.id) ? " done" : ""}"><span class="lv">${esc(it.level)}</span><span class="lt">${esc(it.title)}</span><div class="why">${esc(it.why)}</div>${body}</div>`;
+  };
+  $("lane").innerHTML = `<h2>Go further ${core ? "" : '<span class="muted" style="text-transform:none;font-weight:400">· after the six core steps</span>'}</h2>
+    ${guide.lane.map(item).join("")}
+    <details style="margin-top:6px"><summary style="cursor:pointer;color:var(--accent)">Optional: Forward AI</summary>${guide.lane_ai.map(item).join("")}</details>
+    <div id="lane-out"></div>`;
+  showOut();  // the rebuild above empties the output box: put the job's output back
+  $("lane").querySelectorAll("[data-lane-step]").forEach((b) => b.onclick = () => runStep({ step: b.dataset.laneStep }, "lane"));
+  $("lane").querySelectorAll("[data-lane-chat]").forEach((b) => b.onclick = () => { $("optai").open = true; $("optai").scrollIntoView({ behavior: "smooth" }); $("question").focus(); });
+  const go = $("ex-go");
+  if (go) go.onclick = async () => {
+    const topic = $("ex-topic").value, out = $("ex-out");
+    out.innerHTML = '<span class="spinner"></span>asking Forward…';
+    const t = await askData({ topic, snapshot: $("ex-snap").value, against: topic === "diff" || topic === "checks" ? $("ex-against").value : "", device: $("ex-device").value.trim(), prefix: $("ex-prefix").value.trim() });
+    out.innerHTML = t.error ? `<div class="banner warn">${esc(t.error)}</div>` : tableHtml(t, 200);
+  };
+  const w = $("rq-write");
+  if (w) {
+    w.onclick = async () => {
+      const r = await post("/api/requirement", { id: $("rq-id").value.trim(), port: Number($("rq-port").value), expect: $("rq-expect").value, title: $("rq-title").value });
+      $("rq-note").textContent = r.error ? r.error : `Written to requirements/mine.yml: ${r.count} requirements, yours included. Now predict with them.`;
+    };
+    $("rq-predict").onclick = () => runStep({ step: "predict", requirements: "mine" }, "lane");
+  }
+}
+
+function checkWords(check) {
+  const c = (check || "PENDING").toUpperCase();
+  if (["QUEUED", "PENDING", "WAITING", "REQUESTED"].includes(c)) return "forward/predict is queued: GitHub has not started it yet. That is normal when many people open a PR at once, and it starts on its own. If it is still queued after about five minutes, tell a proctor: you can carry on with Predict my change here while it waits";
+  if (c === "IN_PROGRESS") return "forward/predict is running: it asks Forward to predict your change (usually one to two minutes)";
+  if (c === "SUCCESS") return "forward/predict passed";
+  if (c === "FAILURE") return "forward/predict failed: open it to see why (a red check is a finding, not a fault)";
+  return "forward/predict " + c.toLowerCase();
+}
+
+/* What the page can say about the evidence in front of the person, from the state files the CLI wrote. */
+function facts(key, s) {
+  const f = [], m = s.prediction, v = s.verify, b = s.baseline, rs = (m?.results || []);
+  if (key === "lab") {
+    const l = s.lab || {}, names = Object.keys(l.states || {}).map((n) => n.replace(/^clab-[^-]+-/, "")).sort();
+    const want = l.expected || 10;
+    f.push(`${l.running ?? 0} of ${want} containers are running${names.length ? `: ${names.map((n) => `<code>${esc(n)}</code>`).join(", ")}` : ""}.`);
+    if ((l.running ?? 0) >= want) f.push("Open the Containerlab panel in VS Code to see the same nodes, open a terminal on any of them, or draw the topology.");
+  }
+  if (key === "baseline" && b) {
+    f.push(`Snapshot <code>${esc(b.snapshot)}</code> is your baseline; its requirements: <span class="pill ${esc(b.report?.status)}">${esc(b.report?.status || "?")}</span>.`);
+    f.push("This is the model every prediction will be compared with.");
+  }
+  if (key === "change") {
+    const c = s.candidate || {};
+    if (c.ok && c.changes?.length) {
+      f.push(`The candidate retires ${c.changes.length} prefix(es): ${c.changes.map((l) => `<code>${esc(l.replace("no network ", ""))}</code>`).join(", ")}.`);
+      f.push("Before you predict, decide what you expect: will every requirement still hold, or will something break? Then predict and see whether you were right.");
+    } else f.push("No lines yet. Tick the prefixes to retire, or edit <code>candidate/r4-bgp.eos</code>.");
+    if (c.sha256) f.push(`Candidate hash: <code>${esc(c.sha256.slice(0, 7))}</code> (this is what you will confirm at deploy).`);
+  }
+  if (key === "predict" && m) {
+    const bad = rs.filter((r) => r.status !== "PASS");
+    f.push(`Verdict <span class="pill ${esc(m.status)}">${esc(m.status)}</span> on ${rs.length} requirements, ${bad.length} not passing.`);
+    bad.slice(0, 4).forEach((r) => f.push(`<b>${esc(r.id)}</b> (${esc(r.title)}) is <span class="pill ${esc(r.status)}">${esc(r.status)}</span>. Forward saw: ${esc((r.observed || "").slice(0, 120))}`));
+    if (!s.prediction_current) f.push("The candidate has changed since this prediction, so it no longer applies.");
+  }
+  if (key === "approve") {
+    const pr = (s.prs || [])[0];
+    f.push(pr ? `PR #${pr.number} is ${esc(pr.state.toLowerCase())}; ${esc(checkWords(pr.predict))}.` : "No pull request yet.");
+  }
+  if (key === "deploy" && s.deploy) f.push(`Deployed ${Math.max((s.deploy.lines || []).length - 2, 0)} change line(s) to r4.`);
+  if (key === "verify" && v) {
+    f.push(`Outcome <span class="pill ${esc(v.outcome)}">${esc(v.outcome)}</span> across ${(v.rows || []).length} requirements.`);
+    (v.rows || []).filter((r) => r.predicted !== r.collected).forEach((r) => f.push(`<b>${esc(r.id)}</b>: predicted ${esc(r.predicted)} but collected ${esc(r.collected)}.`));
+  }
+  return f;
+}
+
+// The trail: each lab (stage) is a breadcrumb of its steps. A crumb opens one level at a time (what it does, why and which calls it makes,
+// how to do it by hand) and has three hints that reveal one by one. Ticks come from steps this page ran, or a stage that is done.
+let trailOpen = null, trailState = {}, trailDone = {};
+try { trailState = JSON.parse(localStorage.getItem("wsa4-trail") || "{}"); } catch { trailState = {}; }
+try { trailDone = JSON.parse(localStorage.getItem("wsa4-trail-done") || "{}"); } catch { trailDone = {}; }
+const saveTrail = () => { try { localStorage.setItem("wsa4-trail", JSON.stringify(trailState)); localStorage.setItem("wsa4-trail-done", JSON.stringify(trailDone)); } catch { /* private window: lasts this page view */ } };
+function markTrailDone(step) {
+  if (!guide || !step) return;
+  for (const st of Object.values(guide.steps)) for (const c of st.trail || []) if (c.step === step) trailDone[c.id] = true;
+  saveTrail();
+}
+const TRAIL_LEVELS = ["What it does", "Why, and what it calls", "By hand"];
+function trailHtml(g, stageDone) {
+  const tr = g.trail || [];
+  if (!tr.length) return "";
+  const isDone = (c) => stageDone || trailDone[c.id];
+  const cur = tr.findIndex((c) => !isDone(c));
+  const chips = tr.map((c, i) => `<button type="button" class="crumb${isDone(c) ? " done" : ""}${i === cur ? " cur" : ""}${c.id === trailOpen ? " sel" : ""}" data-crumb="${esc(c.id)}" aria-expanded="${c.id === trailOpen}"><span class="n">${isDone(c) ? "✓" : i + 1}</span>${esc(c.label)}</button>`).join('<span class="sep" aria-hidden="true">›</span>');
+  const open = tr.find((c) => c.id === trailOpen);
+  let detail = "";
+  if (open) {
+    const st = trailState[open.id] || { lv: 1, h: 0 };
+    const lv = Math.min(st.lv || 1, 3), h = Math.min(st.h || 0, 3);
+    detail = `<div class="cdetail" role="region" aria-label="${esc(open.label)}"><h4>${esc(open.label)}</h4>
+      ${open.levels.slice(0, lv).map((x, i) => `<div class="clevel"><b>${TRAIL_LEVELS[i]}</b>${inline(esc(x))}</div>`).join("")}
+      ${open.hints.slice(0, h).map((x, i) => `<div class="hint-line"><b>Hint ${i + 1}</b>${inline(esc(x))}</div>`).join("")}
+      <div class="crow">${lv < 3 ? `<button type="button" class="ghost" data-deeper="${esc(open.id)}">Go deeper</button>` : ""}${h < 3 ? `<button type="button" class="ghost" data-chint="${esc(open.id)}">${h ? "More help" : "I'm stuck: a hint"}</button>` : ""}</div></div>`;
+  }
+  return `<nav class="trail" aria-label="Steps in this lab">${chips}</nav>${detail}`;
+}
+function wireTrail(key) {
+  const again = () => { saveTrail(); guideSig = ""; renderGuide(state, key); };
+  document.querySelectorAll("#next .crumb").forEach((b) => b.onclick = () => { trailOpen = trailOpen === b.dataset.crumb ? null : b.dataset.crumb; again(); });
+  document.querySelectorAll("#next [data-deeper]").forEach((b) => b.onclick = () => { const id = b.dataset.deeper; trailState[id] = { ...(trailState[id] || { lv: 1, h: 0 }), lv: Math.min(((trailState[id] || {}).lv || 1) + 1, 3) }; again(); });
+  document.querySelectorAll("#next [data-chint]").forEach((b) => b.onclick = () => { const id = b.dataset.chint; trailState[id] = { ...(trailState[id] || { lv: 1, h: 0 }), h: Math.min(((trailState[id] || {}).h || 0) + 1, 3) }; again(); });
+}
+
+let guideSig = "";
+function renderGuide(s, key) {
+  if (!guide) { $("next").innerHTML = ""; return; }
+  const g = guide.steps[key] || guide.steps.done;
+  const sig = JSON.stringify([key, s.job, facts(key, s), s.candidate?.sha256, builderSel, s.stages.map((x) => x.state), answered, catchAsk, paceHtml(s), s.updates, trailOpen, trailState, trailDone, (s.predictions || []).length]);
+  if (sig === guideSig) return;
+  const a = document.activeElement;
+  if (a && $("next").contains(a) && a.tagName === "INPUT" && a.type === "text" && a.value) return;  // never rebuild the card under someone's typing
+  guideSig = sig;
+  const stage = s.stages.find((x) => x.key === key);
+  const failed = stage && stage.state === "failed";
+  const naf = g.blocks.map((b) => `<span class="naf" title="${esc(guide.blocks[b] || "")}">${esc(b)}</span>`).join(" → ");
+  const quiz = (items, tag) => (items || []).map((q, qi) => {
+    const id = `${key}.${tag}.${qi}`, a = answered[id];
+    return `<div class="quiz"><div class="q">${esc(q.q)}</div>${q.options.map((o, oi) =>
+      `<label class="${a === undefined ? "" : oi === q.answer ? "right" : oi === a ? "wrong" : ""}"><input type="radio" name="${id}" value="${oi}" ${a === oi ? "checked" : ""} ${a !== undefined ? "disabled" : ""}> ${esc(o)}</label>`).join("")}
+      ${a !== undefined ? `<div class="why"><b>${a === q.answer ? "Yes." : "Not quite."}</b> ${esc(q.why)}</div>` : ""}</div>`;
+  }).join("");
+  const fl = facts(key, s);
+  const runs = (g.run || []).map((r) => `<button data-step="${esc(r.step)}" ${s.job && !s.job.done ? "disabled" : ""}>${esc(r.label)}</button>`).join("");
+  const notes = (g.run || []).map((r) => `<div class="note"><b>${esc(r.label)}:</b> ${esc(r.note)}<div class="termline">In the terminal: <code>${esc(r.cmd || "workshop " + r.step)}</code></div></div>`).join("");
+  let extra = "";
+  if (key === "change") {
+    const sel = builderSel || new Set((s.candidate?.changes || []).map((l) => l.replace("no network ", "")));
+    const label = { "10.20.20.0/24": "r4's service prefix", "10.20.30.0/24": "a leftover", "10.20.40.0/24": "a leftover" };
+    extra = `<div class="gsec builder"><h3>Choose what to retire</h3>${(s.r4_prefixes || []).map((p) => `<label><input type="checkbox" value="${p}" ${sel.has(p) ? "checked" : ""}><span><code>${p}</code><small>${label[p]}: you decide, the next steps will tell you whether you were right</small></span></label>`).join("")}
+      <div class="runrow"><button id="write-cand">Write candidate/r4-bgp.eos</button><span class="muted" id="cand-note"></span></div>
+      <div class="note muted">This only edits the file. Nothing reaches a router. To predict it as the pipeline does, open a pull request from the next step (or commit it yourself, as the exercise shows).</div></div>`;
+  }
+  if (key === "deploy") {
+    extra = `<div class="gsec"><h3>Deploy</h3><div class="muted">Candidate hash to type: look at the <b>Change</b> step or the green check. It starts with <code>${esc((s.candidate?.sha256 || "").slice(0, 2))}…</code></div>
+      <div class="runrow"><input type="text" id="dep-pr" size="8" placeholder="PR number" inputmode="numeric" value="${esc(depPr)}"> <input type="text" id="dep-sha" size="12" placeholder="first 7 of the hash" maxlength="7" autocomplete="off" spellcheck="false" value="${esc(depSha)}"> </div>
+      <div class="runrow">${[["deploy gates", "1. Gates"], ["deploy render", "2. Render"], ["deploy apply", "3. Apply"], ["deploy readback", "4. Read back"]].map(([st, lb]) => `<button class="dep-step" data-step="${st}" ${s.job && !s.job.done ? "disabled" : ""}>${lb}</button>`).join(" ")}</div>
+      <div class="muted">Gates checks everything and sends nothing. Render shows the change in Forward and on r4, side by side (a dry run). Apply sends it. Read back confirms it on r4.</div>
+      <div class="note muted">Deploy refuses unless every check passes: your pull request is merged and green, the baseline is current, and no router has drifted.</div></div>`;
+  }
+  if (key === "predict") {
+    extra = `<div class="gsec"><h3>Or open a pull request: how the pipeline does it</h3>
+      <div class="muted">This commits only <code>candidate/r4-bgp.eos</code> on a new branch (never main), pushes it and opens the pull request. The forward/predict check then starts by itself on GitHub: follow it in the next step. Reviewing and merging stay on GitHub.</div>
+      <div class="runrow"><input type="text" id="pr-msg" size="36" maxlength="72" placeholder="what this change does" value="${esc(prMsg)}"> <button id="pr-go">Open pull request</button></div>
+      <div id="pr-out" class="muted">${prNote}</div>
+      <div class="termline">In the terminal: <code>git switch -c my-change</code>, <code>git commit -am "…"</code>, <code>git push -u origin HEAD</code>, <code>gh pr create --fill</code></div></div>`;
+  }
+  if (key === "predict" && (s.predictions || []).length) {
+    // the trail of attempts: how the change evolved, and what each attempt moved
+    const what = (ls) => { const r = ls.filter((l) => l.startsWith("no ")).map((l) => l.split(" ").pop()), a = ls.filter((l) => !l.startsWith("no ")).map((l) => l.split(" ").pop());
+      return [r.length ? "retire " + r.join(", ") : "", a.length ? "add back " + a.join(", ") : ""].filter(Boolean).join("; ") || "no change lines"; };
+    extra += `<div class="gsec"><h3>Your attempts (${s.predictions.length})</h3><ul class="facts">${s.predictions.slice().reverse().map((e) =>
+      `<li><b>#${e.n}</b> <span class="pill ${esc(e.status)}">${esc(e.status)}</span> <code>${esc(e.sha7)}</code> ${esc(what(e.lines))}${e.kind !== "change" ? ` <span class="muted">(${esc(e.kind)})</span>` : ""}${(e.moved || []).length ? `<div class="muted" style="font-size:12px">since #${e.prev}: ${esc(e.moved.join("; "))}</div>` : ""}</li>`).join("")}</ul>
+      <div class="termline">In the terminal: <code>workshop predict history</code>. Deploy only ever accepts the newest evidence.</div></div>`;
+  }
+  if (key === "approve") {
+    extra = `<div class="gsec"><div class="term">Approving happens on GitHub: open your pull request in the <b>GitHub Pull Requests</b> panel, read the forward/predict result, and <b>Squash and Merge</b> only a green check.</div></div>`;
+  }
+  const busy = s.job && !s.job.done;
+  const catchBlock = `<div class="gsec"><h3>Behind or stuck?</h3><div class="catch"><div class="muted">${esc(g.catchup || "")}</div>
+    <div class="runrow">${catchAsk === key
+      ? `<button class="warn" id="catch-yes" ${busy ? "disabled" : ""}>${key === "deploy" || key === "verify" || key === "done" ? "Yes, start a fresh loop" : "Yes, reset to the start of this step"}</button><button class="ghost" id="catch-no">Cancel</button>`
+      : `<button class="ghost" id="catch-btn" ${busy ? "disabled" : ""}>${key === "deploy" || key === "verify" || key === "done" ? "Start a fresh loop" : "Catch me up"}</button>`}</div></div></div>`;
+  const upd = s.updates && s.updates.available
+    ? `<div class="banner warn"><b>The workshop team pushed an update.</b> In the terminal: <code>git switch main && git pull && uv sync --frozen && bash .devcontainer/start-ui.sh --restart</code> (your branches and your change are untouched), then reload this page and carry on. <span class="muted">${esc((s.updates.files || []).join(", "))}</span></div>` : "";
+  $("next").innerHTML = `
+    ${upd}
+    ${paceHtml(s)}
+    <h2>${esc(g.title)}${failed ? " — something needs attention" : ""}</h2>
+    <div class="nafrow">Framework block: ${naf}</div>
+    ${failed ? `<div class="banner bad">${esc(stage.detail)}</div>` : ""}
+    ${trailHtml(g, stage && stage.state === "done")}
+    <div>${esc(g.what)}</div>
+    ${g.why ? `<div class="why-it-matters"><b>Why this matters.</b> ${esc(g.why)}</div>` : ""}
+    <div class="gsec" id="arts"><h3>What you're working with</h3><div class="muted">loading…</div></div>
+    ${(g.data || []).length ? `<div class="gsec" id="fdata"><h3>What Forward says</h3><div class="muted">asking Forward…</div></div>` : ""}
+    ${(g.before || []).length ? `<div class="gsec"><h3>Before you run it: what do you expect?</h3>${quiz(g.before, "b")}</div>` : ""}
+    ${runs ? `<div class="gsec"><h3>Run it</h3><div class="runrow">${runs}</div>${notes}</div>` : ""}
+    ${extra}
+    <div id="outbox"></div>
+    ${fl.length ? `<div class="gsec"><h3>What you're seeing</h3><ul class="facts">${fl.map((x) => `<li>${x}</li>`).join("")}</ul></div>` : ""}
+    ${(g.after || []).length && fl.length ? `<div class="gsec"><h3>Check yourself</h3>${quiz(g.after, "a")}</div>` : ""}
+    ${catchBlock}`;
+  wireTrail(key);
+  glossarize($("next"));
+  const cb = $("catch-btn"); if (cb) cb.onclick = () => { catchAsk = key; guideSig = ""; renderGuide(state, key); };
+  const cn = $("catch-no"); if (cn) cn.onclick = () => { catchAsk = null; guideSig = ""; renderGuide(state, key); };
+  const cy = $("catch-yes");
+  if (cy) cy.onclick = async () => {
+    const r = await post("/api/catchup", { step: key, confirm: true }); catchAsk = null; guideSig = "";
+    if (r.error) { renderGuide(state, key); showMsg(r.error); return; }
+    job = { id: r.job, done: false, cmd: "catch-up", next: 0, home: "guide" }; outLines = []; pollJob(); renderGuide(state, key);
+  };
+  document.querySelectorAll("#next input[type=radio]").forEach((r) => r.onchange = () => { answered[r.name] = Number(r.value); guideSig = ""; renderGuide(state, key); });
+  document.querySelectorAll("#next button[data-step]").forEach((b) => b.onclick = () => runStep({ step: b.dataset.step }));
+  const w = $("write-cand");
+  if (w) {
+    document.querySelectorAll(".builder input").forEach((c) => c.onchange = () => { builderSel = new Set([...document.querySelectorAll(".builder input:checked")].map((x) => x.value)); });
+    w.onclick = async () => {
+      const retire = [...document.querySelectorAll(".builder input:checked")].map((x) => x.value);
+      const r = await post("/api/candidate", { retire }); builderSel = null;
+      $("cand-note").textContent = r.ok === false ? r.problems[0] : r.error ? r.error : `Written: ${retire.length} line(s), hash ${(r.sha256 || "").slice(0, 7) || "none"}.`;
+      guideSig = ""; refresh();
+    };
+  }
+  const prb = $("pr-go");
+  if (prb) prb.onclick = async () => {
+    prMsg = $("pr-msg").value; prb.disabled = true; prb.textContent = "Opening…"; $("pr-out").innerHTML = '<span class="spinner"></span>Committing, pushing and opening the pull request (a few seconds)…';
+    const r = await post("/api/pr", { message: prMsg });
+    prNote = r.error ? `<div class="banner warn">${esc(r.error)}</div>`
+      : r.created ? `Opened <b>PR #${esc(r.number)}</b> from branch <code>${esc(r.branch)}</code>: <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a>. forward/predict starts on its own: follow it in the <b>Approve</b> step.`
+      : `Updated <b>PR #${esc(r.number)}</b> (branch <code>${esc(r.branch)}</code>)${r.pushed ? " with your new commit" : ": nothing new to push"}: <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a>`;
+    guideSig = ""; renderGuide(state, key); refresh();
+  };
+  if ($("dep-pr")) { $("dep-pr").oninput = (e) => { depPr = e.target.value; }; $("dep-sha").oninput = (e) => { depSha = e.target.value; }; }
+  document.querySelectorAll(".dep-step").forEach((b) => { b.onclick = () => { depPr = $("dep-pr").value.trim(); depSha = $("dep-sha").value.trim(); runStep({ step: b.dataset.step, pr: depPr, confirm: depSha }); }; });
+  showOut();
+  loadArts(key);
+  loadData(key, g);
+}
+
+const dataCache = {};
+function tableHtml(t, limit) {
+  const rows = (t.rows || []).slice(0, limit || 1000);
+  const cell = (c, v) => `<td${c === "change" ? ` class="${esc(v)}"` : ""}>${esc(v)}</td>`;
+  const body = rows.length ? `<div class="dtab"><table><thead><tr>${t.columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${
+    rows.map((r) => `<tr>${t.columns.map((c) => cell(c, r[c] ?? "")).join("")}</tr>`).join("")}</tbody></table></div>` : "";
+  const more = t.truncated ? `<div class="dnote">Showing the first ${t.rows.length}. Narrow it with a device or a prefix.</div>`
+    : (t.rows || []).length > rows.length ? `<div class="dnote">Showing ${rows.length} of ${t.rows.length}. The explorer in <b>Go further</b> has them all, with filters.</div>` : "";
+  return `<div class="dsum">${esc(t.summary)}</div>${body}${more}${t.note ? `<div class="dnote">${esc(t.note)}</div>` : ""}
+    ${t.query ? `<details class="raw"><summary>Show the ${esc(t.query_kind || "query")} behind this</summary><pre>${esc(t.query)}</pre></details>` : ""}
+    <details class="raw"><summary>Show what Forward returned (raw JSON)</summary><pre>${esc(JSON.stringify(t.raw, null, 2).slice(0, 40000))}</pre></details>`;
+}
+async function askData(item) {
+  const q = new URLSearchParams({ topic: item.topic, snapshot: item.snapshot || "baseline", against: item.against || "", device: item.device || "", prefix: item.prefix || "" });
+  const key = q.toString();
+  if (dataCache[key] && Date.now() - dataCache[key].at < 30000) return dataCache[key].v;
+  const r = await fetch("/api/data?" + key);
+  const v = await r.json();
+  if (r.ok) dataCache[key] = { at: Date.now(), v };
+  return r.ok ? v : { error: v.error };
+}
+async function loadData(key, g) {
+  const items = g.data || [];
+  if (!items.length) return;
+  const parts = [];
+  for (const it of items) {
+    const t = await askData(it);
+    if ((selected || (state.stages.find((x) => x.state !== "done") || {}).key || "done") !== key || !$("fdata")) return;
+    parts.push(`<div class="art"><div style="padding:8px 10px"><div style="font-weight:500">${esc(it.title)}</div><div class="dwhy">${esc(it.why)}</div>${
+      t.error ? `<div class="muted">${esc(t.error)}</div>` : tableHtml(t, it.limit)}</div></div>`);
+    $("fdata").innerHTML = `<h3>What Forward says</h3>${parts.join("")}`;
+  }
+}
+
+async function loadArts(key) {
+  let items = [];
+  try { items = await (await fetch(`/api/artifacts?step=${encodeURIComponent(key)}`)).json(); } catch { return; }
+  const box = $("arts");
+  if (!box || (selected || (state.stages.find((x) => x.state !== "done") || {}).key || "done") !== key) return;
+  if (!items.length) { box.hidden = true; return; }
+  box.innerHTML = `<h3>What you're working with</h3>` + items.map((a) => `<details class="art"${a.open && !a.missing ? " open" : ""}><summary>${esc(a.title)} <code>${esc(a.path)}</code></summary>${
+    a.missing ? `<div class="none">Not here yet. It appears once you have run this step.</div>` : `<pre>${esc(a.text)}${a.truncated ? "\n… (shortened)" : ""}</pre>`}</details>`).join("");
+}
+
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "X-Workshop-UI": "1" }, body: JSON.stringify(body) });
+  return r.json();
+}
+
+async function runStep(body, home = "guide") {
+  const r = await post("/api/run", body);
+  if (r.error) { const keep = job; showMsg(r.error); if (keep && !keep.done) job = keep; return; }
+  job = { id: r.job, done: false, cmd: "workshop " + body.step, step: body.step, next: 0, home }; outLines = []; lastLineAt = Date.now();
+  guideSig = ""; pollJob();
+}
+
+function pollJob() {
+  clearTimeout(jobPoll);
+  jobPoll = setTimeout(async () => {
+    try {
+      const v = await (await fetch(`/api/job?id=${job.id}&since=${job.next}`)).json();
+      if (v.error) { job = { ...job, done: true }; outLines.push("The page lost track of that step. Reload and check Status."); }
+      else { if (v.lines.length) lastLineAt = Date.now(); outLines.push(...v.lines); job = { ...job, ...v }; }
+    } catch { /* retry */ }
+    showOut();
+    if (job && !job.done) pollJob(); else { if (job && job.code === 0) markTrailDone(job.step); for (const k in dataCache) delete dataCache[k]; guideSig = ""; laneSig = ""; refresh(); }
+  }, 1000);
+}
+
+function showMsg(text) {
+  const box = $("outbox");
+  if (box) box.innerHTML = `<div class="gsec"><div class="banner warn">${esc(text)}</div></div>`;
+}
+
+function jobBelongsHere() {
+  // A job's output is shown on the step that runs it (and for a catch-up, wherever it was started), never under an unrelated step.
+  if (!job || job.home === "lane") return true;
+  const here = ((guide && guide.steps[currentKey()] || {}).run || []).map((r) => r.step).concat(currentKey() === "deploy" ? ["deploy", "deploy gates", "deploy render", "deploy apply", "deploy readback"] : []);
+  return String(job.step || "").startsWith("catch-up") || String(job.cmd || "").includes("catch-up") || here.includes(job.step);
+}
+
+// Where a running command is: its step line ("Baseline · step 2 of 4: ..."), and the newest "(NN%)" or "(NN s)" a heartbeat
+// printed. Read from the command's own output, so the page never claims more than the command said.
+function progressHtml(lines, done) {
+  let stepLine = "", pct = null, latest = "";
+  for (const l of lines) {
+    if (/· step \d+ of \d+:/.test(l)) stepLine = l.trim();
+    const m = l.match(/\((\d{1,3})%\)/);
+    if (m) { pct = Math.min(100, +m[1]); latest = l.trim(); }
+    else if (/still .*Nothing is stuck|Forward is .*\(\d+s\)/.test(l)) latest = l.trim();
+  }
+  if (!stepLine && pct === null && !latest) return "";
+  const bar = pct !== null && !done ? `<div class="meter" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" style="height:8px;background:var(--line,#ddd);border-radius:4px;margin:4px 0"><div style="height:8px;width:${pct}%;background:var(--ok,#2a7);border-radius:4px"></div></div>` : "";
+  return `<div class="muted" style="margin:4px 0">${esc(stepLine)}</div>${bar}${latest && !done ? `<div class="muted" style="font-size:.9em">${esc(latest)}</div>` : ""}`;
+}
+
+// a line a step prints for each call it makes: "    → Forward SDK  …", "    → NAPALM r4  …", "    $ command"
+const isCall = (l) => /^\s+(→|\$)\s/.test(l);
+const isSdkCall = (l) => /^\s+→ Forward SDK\s/.test(l);
+
+// The HTTP under each Forward SDK call (workshop.trace.HttpHooks). A step run from this page prints one "::workshop-http::{json}"
+// line per request (WORKSHOP_HTTP_MARKS=1); the page hides those lines and folds them under the SDK call above them.
+// The "What just ran" feed carries the same records on each call. Folds stay open across the 1-second redraws.
+const HTTP_MARK = "::workshop-http::";
+const isMark = (l) => l.startsWith(HTTP_MARK);
+const openFolds = new Set();
+document.addEventListener("toggle", (e) => { const k = e.target && e.target.dataset && e.target.dataset.k; if (k) { if (e.target.open) openFolds.add(k); else openFolds.delete(k); } }, true);
+const fmtBytes = (n) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`);
+function httpLine(h) {
+  if (h.retry) return `↻ retry, attempt ${h.attempt} in ${Number(h.delay).toFixed(1)} s (${h.reason})`;
+  if (h.status == null) return `${h.method} ${h.path} → ${h.note || "no response"}`;
+  return `${h.method} ${h.path} → ${h.status} · ${Math.round(h.ms)} ms · ${fmtBytes(h.size || 0)}`;
+}
+function httpFold(h, k) {
+  if (h.retry) return `<div class="hxr">${esc(httpLine(h))}</div>`;
+  const open = openFolds.has(k) ? " open" : "";
+  const req = `<span class="hxh">Request</span>${h.req_type ? " · " + esc(h.req_type) : ""}\n${h.req_body ? esc(h.req_body) : "(no body)"}`;
+  const res = h.status == null ? `<span class="hxh">Response</span>\n${esc(h.note || "none")}`
+    : `<span class="hxh">Response</span> · ${esc(h.status)}${h.type ? " · " + esc(h.type) : ""} · ${fmtBytes(h.size || 0)}\n${h.body ? esc(h.body) : "(empty)"}`;
+  return `<details class="hx" data-k="${esc(k)}"${open}><summary><span class="hxn">${esc(httpLine(h))}</span></summary><div class="hxb">${req}\n\n${res}</div></details>`;
+}
+function callFold(lineHtml, recs, more, k) {
+  const n = recs.filter((h) => !h.retry).length + (more || 0);
+  const open = openFolds.has(k) ? " open" : "";
+  return `<details class="hx" data-k="${esc(k)}"${open}><summary>${lineHtml} <span class="hxn">${n} HTTP request${n === 1 ? "" : "s"}</span></summary>`
+    + `<div class="hxs">${recs.map((h, i) => httpFold(h, `${k}.${i}`)).join("")}${more ? `<div class="hxr">… and ${more} more requests</div>` : ""}</div></details>`;
+}
+// lines of [html, isBlock]: a newline between two text lines, none next to a fold (it is a block of its own)
+const joinOut = (parts) => parts.map(([h, b], i) => (i && !b && !parts[i - 1][1] ? "\n" : "") + h).join("");
+function outHtml(lines, key = "o") {
+  const items = [];
+  for (const l of lines) {
+    if (!isMark(l)) { items.push({ text: l, http: [] }); continue; }
+    let h; try { h = JSON.parse(l.slice(HTTP_MARK.length)); } catch { continue; }
+    let it = null;
+    for (let j = items.length - 1; j >= 0 && !it; j--) if (isSdkCall(items[j].text)) it = items[j];
+    if (!it) { it = { text: "    → Forward SDK  (a call above the lines shown)", http: [] }; items.push(it); }
+    it.http.push(h);
+  }
+  return joinOut(items.map((it, i) => {
+    const line = isCall(it.text) ? `<span class="call">${esc(it.text)}</span>` : esc(it.text);
+    return it.http.length ? [callFold(line, it.http, 0, `${key}:${i}`), true] : [line, false];
+  }));
+}
+const foldsOpen = (prefix) => [...openFolds].some((k) => k.startsWith(prefix));
+
+// the calls this page makes for itself (the explorer, the chat, the pull-request list), newest last; repeats are folded
+let callsNext = 0, callRows = [];
+async function pollCalls() {
+  try {
+    const v = await (await fetch(`/api/calls?since=${callsNext}`)).json();
+    if (!v.calls || !v.calls.length) return;
+    callsNext = v.next;
+    for (const c of v.calls) {
+      const last = callRows[callRows.length - 1];
+      if (last && last.kind === c.kind && last.text === c.text && last.ok === c.ok) { last.n++; last.ms = c.ms; last.http = c.http; last.http_more = c.http_more; } else callRows.push({ ...c, n: 1, key: c.id });
+    }
+    callRows = callRows.slice(-60);
+    const keep = foldsOpen("c:") ? $("calls-out").scrollTop : null;
+    $("calls-out").innerHTML = joinOut(callRows.map((c) => {
+      const line = `<span class="${c.ok ? "call" : "callbad"}">→ ${esc(c.kind)}  ${esc(c.text)}${c.ms >= 1000 ? ` · ${(c.ms / 1000).toFixed(1)} s` : ""}${c.n > 1 ? ` · ×${c.n}` : ""}${c.ok ? "" : " · failed"}</span>`;
+      return c.http && c.http.length ? [callFold(line, c.http, c.http_more, `c:${c.key}`), true] : [line, false];
+    }));
+    $("calls-n").textContent = `(${callRows.reduce((a, c) => a + c.n, 0)} so far)`;
+    const pre = $("calls-out"); pre.scrollTop = keep ?? pre.scrollHeight;
+  } catch { /* the feed is an extra: never stop the page */ }
+}
+
+function showOut() {
+  const box = $(job && job.home === "lane" ? "lane-out" : "outbox");
+  if (!box || !job) return;
+  if (!jobBelongsHere()) { box.innerHTML = ""; return; }
+  const quiet = !job.done && Date.now() - lastLineAt > QUIET_AFTER;
+  const status = job.done ? (job.word ? `<span class="pill ${esc(job.word)}">${esc(job.word)}</span>` : (job.code === 0 ? '<span class="pill PASS">done</span>' : "")) : `<span class="spinner"></span>running… ${job.secs ? job.secs + "s" : ""}`;
+  const patience = quiet ? `<div class="banner warn" style="margin:6px 0">No new output for ${Math.round((Date.now() - lastLineAt) / 1000)}s. That is normal: this step is waiting on Forward or on the lab, which can take a minute or two. Nothing is stuck, and the page will show the moment it moves.<br><em class="muted">${esc(WAITING[Math.floor(Date.now() / 15000) % WAITING.length])}</em></div>` : "";
+  const nCalls = outLines.filter(isCall).length;
+  const keep = foldsOpen(`o:${job.id}:`) && $("outpre") ? $("outpre").scrollTop : null;  // reading an open fold: do not jump to the end
+  box.innerHTML = `<div class="gsec"><h3 tabindex="-1">Output ${status} <span class="muted" style="text-transform:none">${esc(job.cmd || "")}${nCalls ? ` · ${nCalls} call${nCalls === 1 ? "" : "s"} made` : ""}</span></h3>${progressHtml(outLines.filter((l) => !isMark(l)), job.done)}${patience}<pre class="out" id="outpre">${outHtml(outLines, `o:${job.id}`)}</pre></div>`;
+  const pre = $("outpre"); pre.scrollTop = keep ?? pre.scrollHeight;
+}
+
+function renderTopo(s) {
+  const m = s.prediction, results = Object.fromEntries((m?.results || []).map((r) => [r.id, r]));
+  const current = s.prediction_current;
+  const pathTxt = results["PATH-SERVICE"]?.observed || "";
+  const onPath = pathTxt.includes("->") ? pathTxt.split("->").map((x) => x.trim()) : ["r1", "r2", "r4"];
+  const broken = m && current && results["APP-EXISTING"]?.status === "FAIL";
+  const noRoute = m && current && results["ROUTE-SERVICE"]?.status === "FAIL";
+  const passed = m && current && m.status === "PASS";
+  // An earlier MATCH is not shown next to a newer prediction that did not pass: the two would describe different changes.
+  const matched = s.verify?.outcome === "MATCH" && !(m && current && m.status !== "PASS");
+  // The cause is named on r4 only when the change really retires the live prefix: the line is on r4, the damage shows on r1.
+  const retiresLive = (s.candidate?.changes || []).some((l) => l.trim() === "no network 10.20.20.0/24");
+  const cause = (broken || noRoute) && retiresLive;
+  const P = { client: [60, 135], r1: [210, 135], r2: [380, 55], r3: [380, 215], r4: [550, 135], service: [700, 135] };
+  const edges = [["client", "r1"], ["r1", "r2"], ["r1", "r3"], ["r2", "r4"], ["r3", "r4"], ["r4", "service"]];
+  const hops = ["client", ...onPath, "service"];
+  const pathEdge = (a, b) => hops.some((h, i) => (hops[i] === a && hops[i + 1] === b) || (hops[i] === b && hops[i + 1] === a));
+  let svg = edges.map(([a, b]) => {
+    const cls = pathEdge(a, b) ? (broken ? "edge broken" : (passed || matched) ? "edge flow" : "edge path") : "edge";
+    return `<line class="${cls}" x1="${P[a][0]}" y1="${P[a][1]}" x2="${P[b][0]}" y2="${P[b][1]}"/>`;
+  }).join("");
+  const node = (id, sub, host) => {
+    const [x, y] = P[id], bad = (id === "r1" && noRoute) || (id === "service" && broken), isCause = id === "r4" && cause;
+    return `<g class="node${host ? " host" : ""}${bad ? " bad" : ""}${isCause ? " cause" : ""}"><rect x="${x - 46}" y="${y - 22}" width="92" height="44" rx="8"/>
+      <text x="${x}" y="${y - 2}">${id}</text><text class="sub" x="${x}" y="${y + 13}">${sub}</text></g>`;
+  };
+  svg += node("client", "10.10.10.10", true) + node("r1", "AS 65001") + node("r2", "AS 65002") + node("r3", "AS 65003") + node("r4", "AS 65004") + node("service", "10.20.20.20", true);
+  // r4's advertisements, marked by what the current candidate would retire.
+  const retired = new Set((s.candidate?.changes || []).map((l) => l.replace(/^no network /, "")).filter((l) => !l.startsWith("network")));
+  const adv = [["10.20.20.0/24", "live"], ["10.20.30.0/24", "stale"], ["10.20.40.0/24", "stale"]];
+  svg += adv.map(([p, kind], i) => {
+    const cls = retired.has(p) ? (kind === "live" ? "danger" : "retired") : kind;
+    const label = retired.has(p) ? `${p} — retire${kind === "live" ? " (carries the service!)" : ""}` : `${p} — ${kind}`;
+    return `<text class="adv ${cls}" x="${P.r4[0] - 50}" y="${P.r4[1] + 44 + i * 15}">${label}</text>`;
+  }).join("");
+  if (noRoute) svg += `<text class="sub" x="${P.r1[0]}" y="${P.r1[1] + 40}" style="fill:var(--bad)">no route to 10.20.20.0/24</text>`;
+  if (cause) svg += `<text class="note" x="${P.r4[0]}" y="${P.r4[1] - 32}" style="fill:var(--warn)">the change is here</text>` +
+    (noRoute ? `<text class="note" x="${P.r1[0]}" y="${P.r1[1] - 32}" style="fill:var(--bad)">the damage shows here</text>` : "");
+  if (broken) svg += `<text class="note" x="${P.service[0]}" y="${P.service[1] - 32}" style="fill:var(--bad)">unreachable</text>`;
+  const caption = cause && noRoute ? "Predicted: r4 stops advertising the service prefix, so the whole diamond loses the route. This change was not deployed."
+    : cause ? "Predicted: r4 stops advertising the service prefix and the service path breaks. This change was not deployed."
+    : (broken || noRoute) ? "Predicted: the service path breaks. This change was not deployed."
+    : matched ? "Verified: the real network matches the prediction, and traffic to the service flows."
+    : passed ? "Predicted: every requirement holds, and traffic to the service still flows."
+    : "";
+  if (caption) svg += `<text class="caption" x="380" y="262">${esc(caption)}</text>`;
+  $("topo").innerHTML = svg;
+}
+
+function renderPrediction(s) {
+  const m = s.prediction;
+  if (!m) { $("prediction").innerHTML = `<div class="muted">No prediction yet. Open a pull request (the forward/predict check), or run <code>workshop predict</code>.</div>`; return; }
+  const stale = !s.prediction_current ? `<div class="banner warn">The candidate has changed since this prediction. Predict it again before you trust this table.</div>` : "";
+  $("prediction").innerHTML = `${stale}
+    <div style="margin-bottom:8px"><span class="pill ${esc(m.status)}">${esc(m.status)}</span> ${md(m.reason)}</div>
+    <table><thead><tr><th>Requirement</th><th>Result</th><th>What Forward observed</th></tr></thead><tbody>
+    ${(m.results || []).map((r) => `<tr><td><b>${esc(r.id)}</b><div class="muted">${esc(r.title)}</div></td><td><span class="pill ${esc(r.status)}">${esc(r.status)}</span></td><td>${esc((r.observed || "").slice(0, 160))}${r.expected ? `<div class="muted">must be: ${esc(r.expected)}</div>` : ""}</td></tr>`).join("")}
+    </tbody></table>
+    <div class="muted" style="margin-top:6px">Baseline ${esc(m.baseline_snapshot_id)} → predicted ${esc(m.predicted_snapshot_id)} · change set ${esc(m.change_set_id)} · candidate ${esc((m.candidate_sha256 || "").slice(0, 7))}</div>`;
+}
+
+function renderVerify(s) {
+  const v = s.verify;
+  $("verify-card").hidden = !v;
+  if (!v) return;
+  $("verify").innerHTML = `<div style="margin-bottom:8px"><span class="pill ${esc(v.outcome)}">${esc(v.outcome)}</span> ${esc(v.reason || (v.post_snapshot_id ? "post-change snapshot " + v.post_snapshot_id : ""))}</div>
+    <table><thead><tr><th>Requirement</th><th>Predicted</th><th>Collected</th><th>What Forward saw on the real network</th></tr></thead><tbody>
+    ${(v.rows || []).map((r) => `<tr><td><b>${esc(r.id)}</b><div class="muted">${esc(r.title || "")}</div></td><td><span class="pill ${esc(r.predicted)}">${esc(r.predicted)}</span></td><td><span class="pill ${esc(r.collected)}">${esc(r.collected)}</span></td><td>${esc((r.observed || "").slice(0, 160))}${r.expected ? `<div class="muted">must be: ${esc(r.expected)}</div>` : ""}</td></tr>`).join("")}
+    ${(v.probes || []).map((p) => `<tr><td>probe TCP ${esc(p.port)}<div class="muted">a real connection from the client</div></td><td>${esc(p.expected)}</td><td><span class="pill ${p.ok ? "PASS" : "FAIL"}">${esc(p.observed)}</span></td><td></td></tr>`).join("")}
+    </tbody></table>`;
+}
+
+function renderAdvice(s) {
+  const a = s.advice, rev = a?.review || {};
+  if (!a) { $("advice").innerHTML = `<div class="muted">After a prediction, <code>workshop explain</code> (or the forward/advice check on your PR) asks Forward AI to review it: what the change alters, what it would affect, and — if it failed — why.</div>`; return; }
+  const role = (name, text) => text ? `<div class="role"><b class="name">${name}</b>${md(text)}</div>` : "";
+  $("advice").innerHTML = (rev.name ? `<div><b>${esc(rev.name)}</b></div><div class="muted">${esc(rev.description)}</div>` : "") +
+    role("Reviewer — what the change alters", rev.config) + role("Reviewer — what it would affect", rev.impact) +
+    role("Troubleshooter — why it failed", a.troubleshooter?.summary) +
+    (rev.notes || []).map((n) => `<div class="muted">(${esc(n)})</div>`).join("");
+}
+
+let current = null, opened = false;  // the thread on screen; null = a new conversation
+const TOOL_NAMES = { NQE: "NQE query", GET_PATHS: "path search", GET_DEVICE: "device", GET_SUBNET_LOCATIONS: "subnet lookup", TASK_ADD: "plan", TASK_UPDATE: "plan" };
+const TOOL_DOING = { NQE: "queried the model with NQE", GET_PATHS: "searched paths through the network", GET_DEVICE: "looked up a device", GET_SUBNET_LOCATIONS: "looked up where a subnet lives", TASK_ADD: "planned its next steps", TASK_UPDATE: "updated its plan" };
+// While Forward AI works: one line per step it has taken so far (the page polls them from Forward)
+function aiSteps(steps) {
+  if (!steps?.length) return "";
+  return `<ol class="ai-steps">${steps.map((s) => `<li>${esc(TOOL_DOING[s.tool] || s.tool)}</li>`).join("")}</ol>`;
+}
+// After the answer: the queries Forward AI ran, closed until opened, so an answer can be checked rather than trusted
+function aiHow(steps, key, snapshot) {
+  const qs = (steps || []).filter((s) => s.query);
+  if (!qs.length) return "";
+  const open = openAiFolds.has(key) ? " open" : "";
+  return `<details class="ai-how" data-key="${esc(key)}"${open}><summary>How it got that: ${qs.length} ${qs.length === 1 ? "query" : "queries"} it ran</summary>` +
+    qs.map((s) => `<div class="muted" style="font-size:11px;margin-top:6px">${esc(TOOL_NAMES[s.tool] || s.tool)}</div><pre>${esc(s.query)}</pre>`).join("") +
+    `<div class="muted" style="font-size:11px">Run one yourself to check it: save it as <code>check.nqe</code> in your repository's top folder, then <code>workshop nqe check.nqe --snapshot ${esc(snapshot)}</code> (the snapshot this conversation is about).</div></details>`;
+}
+const openAiFolds = new Set();
+
+function renderChat(s) {
+  const threads = s.threads || [], byId = Object.fromEntries((s.prompts || []).map((p) => [p.id, p]));
+  if (!opened && threads.length) { current = threads[0].id; opened = true; }  // reopen the latest on load
+  if (current && !threads.some((t) => t.id === current)) current = null;
+  $("threads").innerHTML = threads.length ? threads.map((t) => `<button class="thread-tab${t.id === current ? " on" : ""}" data-id="${t.id}" title="${esc(t.title)}">${esc(t.title)}</button>`).join("") : `<span class="muted" style="font-size:12px">No conversations yet</span>`;
+  document.querySelectorAll(".thread-tab").forEach((b) => b.onclick = () => { current = b.dataset.id; renderChat(state); });
+  const thread = threads.find((t) => t.id === current);
+  const convo = $("convo"), atBottom = convo.scrollHeight - convo.scrollTop - convo.clientHeight < 40;
+  if (!thread) {
+    convo.innerHTML = `<div class="empty"><p><b>Ask Forward AI about your network.</b></p><p>It answers from the snapshot you pick above — running NQE queries and path searches on your lab — not from memory. Try a suggestion below.</p><p class="muted">It sees your network's model, not the workshop. For "what do I do next?" or a step that failed, ask <code>@wsa4</code> in Slack: it knows the exercises and, once your seat is linked, your last <code>workshop</code> results.</p></div>`;
+  } else {
+    const sample = byId[(thread.label || "").split(" · ")[0]];
+    convo.innerHTML = `<div class="muted" style="font-size:11px;text-align:center">grounded in snapshot ${esc(thread.snapshot)}${thread.label ? " · " + esc(thread.label) : ""}</div>` +
+      thread.turns.map((turn, i) => {
+        const ai = turn.status === "running" ? `<span class="spinner"></span>Forward is working on it… ${Math.round(Date.now() / 1000 - turn.started)}s${aiSteps(turn.steps)}`
+          : turn.status === "error" ? `<span style="color:var(--bad)">${esc(turn.error)}</span>` : md(turn.answer?.summary || "") + aiHow(turn.answer?.steps, `${thread.id}:${i}`, thread.snapshot);
+        const tools = [...new Set(turn.answer?.tools || [])].map((x) => `<span class="tool">${esc(TOOL_NAMES[x] || x)}</span>`).join("");
+        const look = i === 0 && sample && turn.status === "done" ? `<div class="hint"><b>What to look for:</b> ${esc(sample.look_for)}<br><b>Why it matters:</b> ${esc(sample.why)}</div>` : "";
+        return `<div class="bubble user">${esc(turn.question)}</div><div class="bubble ai"><div class="who">Forward AI${turn.secs ? ` · ${turn.secs}s` : ""}</div>${ai}${tools ? `<div class="tools">${tools}</div>` : ""}${look}</div>`;
+      }).join("");
+  }
+  convo.querySelectorAll("details.ai-how").forEach((d) => d.ontoggle = () => { d.open ? openAiFolds.add(d.dataset.key) : openAiFolds.delete(d.dataset.key); });
+  if (atBottom || thread?.turns.at(-1)?.status === "running") convo.scrollTop = convo.scrollHeight;
+  $("prompts").innerHTML = (s.prompts || []).filter((p) => !thread || p.snapshot === (thread.label || "").split(" · ").pop()).slice(0, 6)
+    .map((p) => `<button class="chip" data-id="${esc(p.id)}" title="${esc(p.prompt)}">${esc(p.prompt.length > 48 ? p.prompt.slice(0, 46) + "…" : p.prompt)}</button>`).join("");
+  document.querySelectorAll("#prompts .chip").forEach((b) => b.onclick = () => send({ prompt: b.dataset.id }));
+  $("ask").disabled = s.busy;
+  $("ask-note").textContent = s.busy ? "Forward AI answers one question at a time — read the evidence while it works." : thread ? "Follow-ups stay in this conversation." : "Starts a new conversation.";
+}
+
+async function send(body) {
+  if (!body.prompt) {
+    const q = $("question").value.trim();
+    if (!q) return;
+    body = current ? { question: q, thread: current } : { question: q, snapshot: $("snap").value };
+  }
+  const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json", "X-Workshop-UI": "1" }, body: JSON.stringify(body) });
+  const data = await r.json();
+  if (!r.ok) { $("ask-note").textContent = data.error; return; }
+  $("question").value = "";
+  current = data.thread;
+  refresh();
+}
+$("ask").onclick = () => send({});
+$("question").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!$("ask").disabled) send({}); } });
+$("new-chat").onclick = () => { current = null; renderChat(state); $("question").focus(); };
+
+function rotateTip() {
+  const el = $("tip");
+  el.style.opacity = 0;
+  setTimeout(() => { el.innerHTML = TIPS[tipIndex++ % TIPS.length]; el.style.opacity = 1; }, 400);
+}
+
+
+/* ---- challenges: a private checklist with hints that reveal one level at a time ---- */
+let hintLevel = {}, prevDone = null, chalSig = "", stretchOpen = false;
+try { hintLevel = JSON.parse(localStorage.getItem("wsa4-hints") || "{}"); } catch { hintLevel = {}; }
+function renderChallenges(s) {
+  const p = s.progress;
+  if (!p) return;
+  const sig = JSON.stringify([p.challenges.map((c) => [c.id, c.done]), p.next, hintLevel, stretchOpen]);
+  if (sig === chalSig) return;
+  chalSig = sig;
+  const done = new Set(p.challenges.filter((c) => c.done).map((c) => c.id));
+  const fresh = prevDone ? [...done].filter((id) => !prevDone.has(id)) : [];
+  prevDone = done;
+  const row = (c) => {
+    const lvl = Math.min(hintLevel[c.id] || 0, 3);
+    const hints = c.done ? "" : c.hints.slice(0, lvl).map((h, i) => `<div class="hint-line"><b>Hint ${i + 1}</b>${inline(esc(h))}</div>`).join("");
+    const btn = c.done || lvl >= 3 ? "" : `<button class="ghost hint-btn" data-id="${esc(c.id)}">${lvl ? "More help" : "Hint"}</button>`;
+    return `<li class="chal${c.done ? " done" : ""}${c.id === p.next ? " next" : ""}${fresh.includes(c.id) ? " flash" : ""}"><span class="tick"></span><div class="cbody"><div class="ctitle">${esc(c.title)}${c.minutes ? ` <span class="muted" style="font-weight:400">· about ${c.minutes} min</span>` : ""}</div>${hints}</div>${btn}</li>`;
+  };
+  $("chals-core").innerHTML = p.challenges.filter((c) => c.kind === "core").map(row).join("");
+  $("chals-stretch").innerHTML = p.challenges.filter((c) => c.kind === "stretch").map(row).join("");
+  $("chal-sum").textContent = `· ${p.core_done} of ${p.core_total} steps`;
+  $("stretch-sum").textContent = `(${p.stretch_done} of ${p.stretch_total})`;
+  $("chal-stretch").open = stretchOpen;
+}
+$("chal-card").addEventListener("click", (e) => {
+  const b = e.target.closest(".hint-btn");
+  if (!b) return;
+  hintLevel[b.dataset.id] = Math.min((hintLevel[b.dataset.id] || 0) + 1, 3);
+  try { localStorage.setItem("wsa4-hints", JSON.stringify(hintLevel)); } catch { /* private window: hints last this page view */ }
+  if (state) renderChallenges(state);
+});
+$("chal-stretch").addEventListener("toggle", () => { stretchOpen = $("chal-stretch").open; chalSig = ""; });
+
+async function refresh() {
+  try {
+    state = await (await fetch("/api/state")).json();
+  } catch { $("seat").textContent = "disconnected — is workshop ui still running?"; return; }
+  $("seat").textContent = `${state.lab_id} · Forward network ${state.network_id}`;
+  if (state.job && !job) { job = { id: state.job.id, done: state.job.done, word: state.job.word, cmd: "workshop " + state.job.step, step: state.job.step, next: 0 }; outLines = []; if (!state.job.done) pollJob(); else fetch(`/api/job?id=${job.id}&since=0`).then((r) => r.json()).then((v) => { if (!v.error) { outLines = v.lines; job = { ...job, ...v }; showOut(); } }); }
+  renderBadges(state); renderLoop(state.stages); try { renderTopo(state); } catch (e) { /* the picture is an extra: never stop the cards below it */ } renderPrediction(state); renderVerify(state); renderAdvice(state); renderChat(state); renderChallenges(state); renderLane(state);
+  $("intent").innerHTML = md(state.intent);
+  pollCalls();
+}
+loadGuide().then(refresh); rotateTip();
+setInterval(refresh, 3000); setInterval(rotateTip, 15000);
+</script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+{
+  "name": "AutoCon6 — Know Before You Deploy",
+  "image": "mcr.microsoft.com/devcontainers/base:1-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": true
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/sshd:1": {}
+  },
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb",
+    "storage": "32gb"
+  },
+  "containerEnv": {
+    "WORKSHOP_STATE_DIR": "/workspaces/.autocon6-state",
+    "FWD_HEADLESS_HOME": "/workspaces/.autocon6-collector",
+    "FORWARD_VERIFY_TLS": "true",
+    "CLAB_VERSION_CHECK": "disable"
+  },
+  "remoteEnv": {
+    "PATH": "${containerWorkspaceFolder}/.venv/bin:/home/vscode/.local/bin:${containerEnv:PATH}"
+  },
+  "postCreateCommand": "bash .devcontainer/bootstrap.sh",
+  "postStartCommand": "bash .devcontainer/start-ui.sh",
+  "forwardPorts": [
+    8765
+  ],
+  "portsAttributes": {
+    "8765": {
+      "label": "Your lab (workshop ui)",
+      "onAutoForward": "notify"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "srl-labs.vscode-containerlab",
+        "GitHub.vscode-pull-request-github",
+        "GitHub.copilot-chat"
+      ],
+      "settings": {
+        "workbench.startupEditor": "readme",
+        "files.autoSave": "afterDelay",
+        "containerlab.showWelcomePage": false,
+        "workbench.editorAssociations": {
+          "*.md": "vscode.markdown.preview.editor"
+        }
+      }
+    }
+  }
+}
