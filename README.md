@@ -3,7 +3,7 @@
 The AutoCon6 workshop WS:A4 (Tucson, November 16, 2026), as the room ran it. Four routers, six host subnets, a pull
 request, and a test stage that asks what the **network** will do after a change, before any router is touched.
 
-**Baseline → Change → Predict → Approve → Deploy → Verify**
+**Baseline → Propose → Predict → Approve → Deploy → Verify**
 
 The change is small on purpose: retire two stale BGP advertisements on r4. The obvious version of that change also takes
 out the live service, two routers away, and it's perfectly valid config. Catching that before it ships is the whole point.

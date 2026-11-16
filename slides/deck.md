@@ -22,7 +22,7 @@ Up while people arrive. Remote participants only: anyone in the room stays off t
 
 ## Hands-on network CI/CD with Forward Predict
 
-<div class="pipe" style="justify-content:center;margin:.9em auto 0;font-size:.8em"><span class="on">Baseline</span><span class="on">Change</span><span class="on">Predict</span><span class="on">Approve</span><span class="on">Deploy</span><span class="on">Verify</span></div>
+<div class="pipe" style="justify-content:center;margin:.9em auto 0;font-size:.8em"><span class="on">Baseline</span><span class="on">Propose</span><span class="on">Predict</span><span class="on">Approve</span><span class="on">Deploy</span><span class="on">Verify</span></div>
 
 <p class="small" style="margin-top:1em"><em>Craig Johnson · Sean Deveci · Mike Lossmann</em></p>
 
@@ -580,7 +580,7 @@ Most tiles should be blue (baseline). Hands up for anyone with a FAIL on the bas
 
 ## Build and run the change pipeline
 
-<div class="pipe"><span class="done">Baseline</span><span class="on">Change</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="on">Propose</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
 
 <div class="goal">Send a one-prefix change through Git, CI and Forward Predict, and read the result.</div>
 
@@ -649,11 +649,11 @@ This is the spine of the day: the flows you care about are written once, in Git,
 
 <p style="margin:.2em 0 .9em"><span class="stamp">PREDICT OVERRIDDEN</span></p>
 
-<div class="pipe"><span class="done">Baseline</span><span class="on">Change</span><span>Predict</span><span>Approve</span><span class="on">Deploy</span><span class="on">Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="on">Propose</span><span>Predict</span><span>Approve</span><span class="on">Deploy</span><span class="on">Verify</span></div>
 
 - **First:** your own question, `workshop nqe nqe/stale_bgp_advertisements.nqe`: **today's change request**. Then turn your path searches into intent checks (`workshop intent`, or the Deploy stage's button)
-- **Change:** retire **all three** statements (tick them on the Change stage, or edit the file). Don't commit
-- **Deploy without Predict** (the Deploy stage, or `workshop deploy apply --without-predict --confirm <sha7>`): it opens a change ticket
+- **Propose:** retire **all three** statements (tick them on the Propose stage, or edit the file). Don't commit
+- **Deploy without Predict** (the Deploy stage, or `workshop deploy apply --without-predict --confirm HASH`): it opens a change ticket
 - **Verify**, five steps: **FAIL**. Open the ticket (your repo's **Issues** tab): Forward says what broke, after the fact
 - **Back it out:** Revert: plan → apply → the baseline steps → compare: **MATCH**. Then empty the candidate
 
@@ -695,10 +695,10 @@ The turn of the morning. The design loop (NAF Intent → Observability → Orche
 <tr><th>Stage</th><th>I'm Too Young to Die: click</th><th>Hold My Beer: type</th></tr>
 <tr><td><b>0 Start</b></td><td><b>Start the lab</b>, then <b>Check my setup</b></td><td><code>workshop up</code>, <code>workshop doctor</code></td></tr>
 <tr><td><b>1 Baseline</b></td><td><b>1. Collect</b> → <b>2. Upload</b> → <b>3. Wait for the model</b> → <b>4. Check</b></td><td><code>workshop baseline collect</code>, <code>upload</code>, <code>wait</code>, <code>check</code></td></tr>
-<tr><td><b>2 Change</b></td><td>tick what to retire, <b>Write candidate/r4-bgp.eos</b>, <b>Open pull request</b></td><td>edit <code>candidate/r4-bgp.eos</code>, branch, commit, push, open the PR</td></tr>
+<tr><td><b>2 Propose</b></td><td>tick what to retire, <b>Write candidate/r4-bgp.eos</b>, <b>Open pull request</b></td><td>edit <code>candidate/r4-bgp.eos</code>, branch, commit, push, open the PR</td></tr>
 <tr><td><b>3 Predict</b></td><td>watch <b>forward/predict</b> on your PR (or <b>1. Change set</b> → <b>2. Predict</b> → <b>3. Check</b>)</td><td><code>workshop predict changeset</code>, <code>run</code>, <code>check</code></td></tr>
 <tr><td><b>4 Approve</b></td><td colspan="2">merge the pull request on GitHub, only when the check is green</td></tr>
-<tr><td><b>5 Deploy</b></td><td><b>1. Gates</b> → <b>2. Render</b> → <b>3. Apply</b> → <b>4. Read back</b></td><td><code>workshop deploy gates</code>, <code>render</code>, <code>apply</code>, <code>readback</code> with <code>--pr N --confirm &lt;sha7&gt;</code></td></tr>
+<tr><td><b>5 Deploy</b></td><td><b>1. Gates</b> → <b>2. Render</b> → <b>3. Apply</b> → <b>4. Read back</b></td><td><code>workshop deploy gates</code>, <code>render</code>, <code>apply</code>, <code>readback</code> with <code>--pr N --confirm HASH</code></td></tr>
 <tr><td><b>6 Verify</b></td><td><b>1. Probe</b> → <b>2. Collect</b> → <b>3. Upload</b> → <b>4. Wait for the model</b> → <b>5. Compare</b></td><td><code>workshop verify probe</code>, <code>collect</code>, <code>upload</code>, <code>wait</code>, <code>compare</code></td></tr>
 </table>
 
@@ -714,7 +714,7 @@ Talk it through top to bottom, once, about a minute: this is the whole morning. 
 ## CI/CD, for the network
 
 <div class="flow">
-<div class="step"><b>Change</b>a pull request</div><div class="arrow">›</div>
+<div class="step"><b>Propose</b>a pull request</div><div class="arrow">›</div>
 <div class="step hot"><span class="n">the missing stage</span><b>Tests</b>of network behavior</div><div class="arrow">›</div>
 <div class="step"><b>Gate</b>only PASS gets through</div><div class="arrow">›</div>
 <div class="step"><b>Deploy</b>exactly what was tested</div><div class="arrow">›</div>
@@ -752,7 +752,7 @@ Forward builds a model from what it collects. Predict applies candidate changes 
 ## Six stages. Only a PASS moves on.
 
 <div class="pipeline">
-<div class="pipe"><span class="on">1 Baseline</span><span class="on">2 Change</span><span class="on">3 Predict</span><span class="on">4 Approve</span><span class="on">5 Deploy</span><span class="on">6 Verify</span></div>
+<div class="pipe"><span class="on">1 Baseline</span><span class="on">2 Propose</span><span class="on">3 Predict</span><span class="on">4 Approve</span><span class="on">5 Deploy</span><span class="on">6 Verify</span></div>
 
 <div class="lane"><div class="label">Where it runs</div>
 <div>Your terminal</div><div>Your editor, then a pull request</div><div>GitHub Actions, with Forward</div><div>GitHub</div><div>Your terminal, then r4</div><div>Your terminal, with Forward</div></div>
@@ -775,7 +775,7 @@ Walk left to right once. Each stage checks one thing; we come back to those, and
 
 <table class="small">
 <tr><th>Stage</th><th>NAF Framework block</th><th>What it adds</th></tr>
-<tr><td><b>Change</b></td><td>Intent</td><td>The change and the tests it must pass, in Git: reviewable, versioned, one source</td></tr>
+<tr><td><b>Propose</b></td><td>Intent</td><td>The change and the tests it must pass, in Git: reviewable, versioned, one source</td></tr>
 <tr><td><b>Baseline, Predict</b></td><td>Collector → Observability</td><td>A model of the real network, and the change applied to it before any router is touched</td></tr>
 <tr><td><b>Approve</b></td><td>Orchestrator, with a person</td><td>Only a PASS can merge, and a person merges it</td></tr>
 <tr><td><b>Deploy</b></td><td>Executor</td><td>Exactly the lines that were predicted, and only if nothing drifted</td></tr>
@@ -813,7 +813,7 @@ Open `.github/workflows/forward-predict.yml` and `src/workshop/predict.py` on th
 
 ## Your first change through the pipeline
 
-<div class="pipe"><span class="done">Baseline</span><span class="on">Change</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="on">Propose</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
 
 - Retire **one** stale advertisement on a new branch, and open a pull request
 - Watch **forward/predict**. Expect only `STALE-CLEARED` to fail: that's "not done yet"
@@ -887,7 +887,7 @@ This is the bridge to the deploy guards later. `evidence/evidence.json` on the C
 
 ## Did your pull request get a verdict?
 
-<div class="pipe"><span class="done">Baseline</span><span class="on">Change</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="on">Propose</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
 
 - Your pull request is open from its own branch (not <code>main</code>)
 - The <b>forward/predict</b> check ran, and you read its summary
@@ -915,7 +915,7 @@ Tiles show predicting, then red. This red is expected. Watch how long tiles stay
 
 ## Break it before you deploy it
 
-<div class="pipe"><span class="done">Baseline</span><span class="on">Change</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="on">Propose</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
 
 <div class="goal">Make a change that looks valid, and watch Predict catch the damage before any router is touched.</div>
 
@@ -954,7 +954,7 @@ Set up the exercise: they make this change on purpose. Remind them to run `works
 
 ## Break it, and read why
 
-<div class="pipe"><span class="done">Baseline</span><span class="on">Change</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="on">Propose</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
 
 - Make the change above, open the PR, watch **forward/predict** go red
 - Which tests failed? What did Forward observe?
@@ -970,7 +970,7 @@ Set up the exercise: they make this change on purpose. Remind them to run `works
 
 ## Read the verdict
 
-<div class="pipe"><span class="done">Baseline</span><span class="done">Change</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="done">Propose</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
 
 <table class="verdict">
 <tr><th>Requirement</th><th>Result</th><th>Forward observed</th></tr>
@@ -992,7 +992,7 @@ Have them scroll the PR's Conversation to the Change analysis comment: it's the 
 
 ## Why does the whole diamond lose the route?
 
-<div class="pipe"><span class="done">Baseline</span><span class="done">Change</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="done">Propose</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
 
 <div class="flow">
 <div class="step hot"><b>r4</b>stops advertising <code>10.20.20.0/24</code></div><div class="arrow">›</div>
@@ -1012,7 +1012,7 @@ Let a couple of people answer. The service prefix is directly connected on r4; i
 
 ## Ask Forward AI, then check it
 
-<div class="pipe"><span class="done">Baseline</span><span class="done">Change</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="done">Propose</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
 
 <div class="cols">
 <div class="card"><h4>Asked with no context</h4><p>"Why can the client no longer reach the service?"</p><p class="small bad">Blames r1 and suggests a static route there. Right symptom, wrong cause.</p></div>
@@ -1033,7 +1033,7 @@ From our own rehearsal on fwd.app. The lesson is not "AI is bad" but "AI output 
 
 ## Find the line responsible
 
-<div class="pipe"><span class="done">Baseline</span><span class="done">Change</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="done">Propose</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
 
 - Compare with your first pull request: what's different?
 - `workshop explain` (after the local predict steps)
@@ -1048,7 +1048,7 @@ From our own rehearsal on fwd.app. The lesson is not "AI is bad" but "AI output 
 
 ## Did Predict catch it?
 
-<div class="pipe"><span class="done">Baseline</span><span class="done">Change</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="done">Propose</span><span class="on">Predict</span><span>Approve</span><span>Deploy</span><span>Verify</span></div>
 
 - Predict said <b>FAIL</b> on your change
 - You can say which requirements broke, and why
@@ -1083,7 +1083,7 @@ Tell it straight, no spin. The point isn't "the model is bad". Any model is a mo
 
 ## Fix it and prove it
 
-<div class="pipe"><span class="done">Baseline</span><span class="on">Change</span><span class="on">Predict</span><span class="on">Approve</span><span>Deploy</span><span>Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="on">Propose</span><span class="on">Predict</span><span class="on">Approve</span><span>Deploy</span><span>Verify</span></div>
 
 <div class="goal">Finish the job safely, let it through the gate, and merge.</div>
 
@@ -1101,7 +1101,7 @@ Exercise 4. Fix, push, green, merge. Show a merge refused on the red retire-one 
 
 ## Fix it, and let it through the gate
 
-<div class="pipe"><span class="done">Baseline</span><span class="on">Change</span><span class="on">Predict</span><span class="on">Approve</span><span>Deploy</span><span>Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="on">Propose</span><span class="on">Predict</span><span class="on">Approve</span><span>Deploy</span><span>Verify</span></div>
 
 - Keep the live advertisement. Push the fix to the same branch
 - **forward/predict** re-runs: a regression test on every commit
@@ -1118,7 +1118,7 @@ Exercise 4. Fix, push, green, merge. Show a merge refused on the red retire-one 
 
 ## Is it green and merged?
 
-<div class="pipe"><span class="done">Baseline</span><span class="on">Change</span><span class="on">Predict</span><span class="on">Approve</span><span>Deploy</span><span>Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="on">Propose</span><span class="on">Predict</span><span class="on">Approve</span><span>Deploy</span><span>Verify</span></div>
 
 - <b>forward/predict</b> says PASS on the fixed change
 - The pull request is <b>merged</b> into main
@@ -1137,7 +1137,7 @@ About 12:20 tiles go green, then approved. Help anyone still red and pair them w
 
 ## Deploy and verify
 
-<div class="pipe"><span class="done">Baseline</span><span class="done">Change</span><span class="done">Predict</span><span class="done">Approve</span><span class="on">Deploy</span><span class="on">Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="done">Propose</span><span class="done">Predict</span><span class="done">Approve</span><span class="on">Deploy</span><span class="on">Verify</span></div>
 
 <div class="goal">Send exactly what Predict approved, then check that reality matched the prediction.</div>
 
@@ -1146,7 +1146,7 @@ About 12:20 tiles go green, then approved. Help anyone still red and pair them w
 <p class="small muted">Presenting: {{WHO:deploy}}</p>
 
 Note:
-Handoff: {{WHO:fixit}} → {{WHO:deploy}}. Exercise 5. `workshop deploy gates`, `render`, `apply`, `readback` (with `--pr N --confirm <sha7>`), then the five verify steps. Put `deploy render` on the projector: one change, the same lines in Forward's model and in r4's own diff. Then the change window (optional, 3 minutes): `workshop deploy apply ... --at <now+2>`, and while it counts down `workshop link down` in a second terminal: at the window, NOT DEPLOYED (STALE). The approval is for the network Forward predicted, not whatever it has become. Then `workshop link up` (the fingerprint matches again) before deploying for real. Fill: the drift experiment (hand edit, verify MISMATCH), then `workshop restore` and the baseline steps.
+Handoff: {{WHO:fixit}} → {{WHO:deploy}}. Exercise 5. `workshop deploy gates`, `render`, `apply`, `readback` (with `--pr N --confirm HASH`), then the five verify steps. Put `deploy render` on the projector: one change, the same lines in Forward's model and in r4's own diff. Then the change window (optional, 3 minutes): `workshop deploy apply ... --at <now+2>`, and while it counts down `workshop link down` in a second terminal: at the window, NOT DEPLOYED (STALE). The approval is for the network Forward predicted, not whatever it has become. Then `workshop link up` (the fingerprint matches again) before deploying for real. Fill: the drift experiment (hand edit, verify MISMATCH), then `workshop restore` and the baseline steps.
 
 ---
 
@@ -1155,7 +1155,7 @@ Handoff: {{WHO:fixit}} → {{WHO:deploy}}. Exercise 5. `workshop deploy gates`, 
 
 ## Deploy, collect, compare
 
-<div class="pipe"><span class="done">Baseline</span><span class="done">Change</span><span class="done">Predict</span><span class="done">Approve</span><span class="on">Deploy</span><span class="on">Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="done">Propose</span><span class="done">Predict</span><span class="done">Approve</span><span class="on">Deploy</span><span class="on">Verify</span></div>
 
 - Copy the deploy command from the top of the green check's summary
 - `workshop deploy gates` → `render` → `apply` → `readback`: you type the hash
@@ -1173,13 +1173,13 @@ Handoff: {{WHO:fixit}} → {{WHO:deploy}}. Exercise 5. `workshop deploy gates`, 
 
 ## Did reality match the prediction?
 
-<div class="pipe"><span class="done">Baseline</span><span class="done">Change</span><span class="done">Predict</span><span class="done">Approve</span><span class="on">Deploy</span><span class="on">Verify</span></div>
+<div class="pipe"><span class="done">Baseline</span><span class="done">Propose</span><span class="done">Predict</span><span class="done">Approve</span><span class="on">Deploy</span><span class="on">Verify</span></div>
 
 - <code>workshop deploy</code> applied the change to r4
 - <code>workshop verify compare</code> says <b>MATCH</b>
 - The real flows agree: 8080 open, 2222 blocked
 
-<div class="behind"><b>Behind?</b> Deploy needs the merged pull request number and the 7-character hash: <code>workshop deploy gates --pr N --confirm &lt;sha7&gt;</code>, then <code>render</code>, <code>apply</code>, <code>readback</code> with the same flags.</div>
+<div class="behind"><b>Behind?</b> Deploy needs the merged pull request number and the 7-character hash: <code>workshop deploy gates --pr N --confirm HASH</code>, then <code>render</code>, <code>apply</code>, <code>readback</code> with the same flags.</div>
 
 Note:
 About 12:45 tiles are solid green and the board total for re-checked climbs. Then the wrap-up.
@@ -1190,12 +1190,12 @@ About 12:45 tiles are solid green and the board total for re-checked climbs. The
 
 ## What you ran today
 
-<div class="pipe"><span class="on">Baseline</span><span class="on">Change</span><span class="on">Predict</span><span class="on">Approve</span><span class="on">Deploy</span><span class="on">Verify</span></div>
+<div class="pipe"><span class="on">Baseline</span><span class="on">Propose</span><span class="on">Predict</span><span class="on">Approve</span><span class="on">Deploy</span><span class="on">Verify</span></div>
 
 <table>
 <tr><th>Stage</th><th>The step you ran</th></tr>
 <tr><td><b>Baseline</b></td><td><code>workshop baseline collect</code> → <code>upload</code> → <code>wait</code> → <code>check</code></td></tr>
-<tr><td><b>Change, Predict</b></td><td>a pull request, then <code>workshop predict changeset</code> → <code>run</code> → <code>check</code> in CI</td></tr>
+<tr><td><b>Propose, Predict</b></td><td>a pull request, then <code>workshop predict changeset</code> → <code>run</code> → <code>check</code> in CI</td></tr>
 <tr><td><b>Approve</b></td><td>you merged a green <code>forward/predict</code> check, and only that</td></tr>
 <tr><td><b>Deploy</b></td><td><code>workshop deploy gates</code> → <code>render</code> → <code>apply</code> → <code>readback</code></td></tr>
 <tr><td><b>Verify</b></td><td><code>workshop verify probe</code> → <code>collect</code> → <code>upload</code> → <code>wait</code> → <code>compare</code></td></tr>
@@ -1335,7 +1335,7 @@ Open the board and read the totals aloud (after 12:50 its wrap-up scoreboard sho
 - The exercises and `AGENTS.md` in your seat repository
 - A requirement you wrote (or can write) in `requirements/`
 - **Go deeper** (`docs/exercises/go-deeper.md`): Forward's docs for each feature you used, netlab, NAPALM, GitHub rulesets, and where to look when a tool breaks
-- The loop: **Baseline → Change → Predict → Approve → Deploy → Verify**
+- The loop: **Baseline → Propose → Predict → Approve → Deploy → Verify**
 
 **Your seat stays up until Sunday, November 22, 8 PM Tucson.** Finish at your own pace, then keep a copy: on your repository's page, **Code → Download ZIP** (or `git clone` it). After that the seat, its Forward network and its repository are removed.
 
