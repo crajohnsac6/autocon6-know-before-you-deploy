@@ -23,6 +23,7 @@ import threading
 import time
 import uuid
 from dataclasses import asdict
+from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
@@ -38,13 +39,15 @@ ASSETS = resources.files("workshop") / "ui_assets"
 MAX_QUESTION = 1000
 MAX_LINES = 1500
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+PAGE_WINDOW_MAX = timedelta(minutes=15)
+WINDOW = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?([+-]\d{2}:\d{2}|Z)?|\d{1,2}:\d{2}")  # a change window
 SHA7 = re.compile(r"^[0-9a-f]{7}$")
 # The prefixes r4 advertises; the change builder may only retire these.
 R4_PREFIXES = ("10.20.20.0/24", "10.20.30.0/24", "10.20.40.0/24")
 # What the page may start. Anything else (down, collector, ask...) stays a typed command.
 STEPS = ("doctor", "up", "baseline", "probe", "predict", "explain", "propose", "matrix", "agent", "deploy", "verify", "restore", "status",
          # one step at a time: what the exercises teach
-         "baseline collect", "baseline upload", "baseline wait", "baseline check", "link down", "link up",
+         "baseline collect", "baseline upload", "baseline wait", "baseline check", "link down", "link up", "changes all", "changes routes", "changes checks", "changes reach", "intent", "deploy unpredicted", "revert plan", "revert apply", "revert compare",
          "predict changeset", "predict run", "predict check",
          "deploy gates", "deploy render", "deploy apply", "deploy readback",
          "verify probe", "verify collect", "verify upload", "verify wait", "verify compare")
@@ -193,7 +196,7 @@ def badges(base: dict[str, Any] | None, prediction: dict[str, Any] | None, prs: 
         "baseline": ((base or {}).get("report") or {}).get("status") == "PASS",
         "caught": bool(reds),
         "fixed": bool(reds and greens and greens[-1] > reds[0]),
-        "shipped": bool(deployed) and not (deployed or {}).get("readback_problems"),  # a refused readback is NOT DEPLOYED
+        "shipped": bool(deployed) and not (deployed or {}).get("readback_problems") and (deployed or {}).get("predicted") is not False,  # a refused readback is NOT DEPLOYED
         "match": (verified or {}).get("outcome") == "MATCH",
     }
     out = [{"key": k, "label": label, "why": why} for k, label, why in BADGES if earned[k]]
@@ -302,6 +305,21 @@ class Jobs:
     def argv(self, step: str, params: dict[str, Any]) -> list[str]:
         if step not in STEPS:
             raise ValueError(f"'{step}' is not a step this page can start")
+        if step in ("changes all", "changes routes", "changes checks", "changes reach"):  # exercise 1: the baseline before the newest one, against the newest
+            topic = {"changes all": "changes", "changes routes": "diff", "changes checks": "checks", "changes reach": "reach"}[step]
+            return ["data", topic, "--snapshot", "previous", "--against", "baseline"]
+        if step == "deploy unpredicted":  # Predict overridden, on purpose (exercise 2's first part): only the hash of what is sent
+            confirm = str(params.get("confirm", "")).strip().lower()
+            if not SHA7.match(confirm):
+                raise ValueError("type the first 7 characters of the candidate's hash (the Change step shows it) to confirm")
+            return ["deploy", "apply", "--without-predict", "--confirm", confirm]
+        if step in ("revert plan", "revert compare"):
+            return step.split()
+        if step == "revert apply":
+            confirm = str(params.get("confirm", "")).strip().lower()
+            if not SHA7.match(confirm):
+                raise ValueError("type the first 7 characters of the revert's hash (Revert: plan prints it)")
+            return ["revert", "apply", "--confirm", confirm]
         out = step.split()
         stage, sub_step = out[0], (out[1] if len(out) > 1 else "")
         if stage == "deploy" and sub_step == "readback":
@@ -331,6 +349,18 @@ class Jobs:
                 raise ValueError("enter the number of your merged pull request: deploy only ships a change that was approved there")
             out += ["--pr", pr]
             out += ["--confirm", confirm]
+            at = str(params.get("at", "")).strip()
+            if at:
+                if sub_step != "apply":
+                    raise ValueError("a change window is for Apply")
+                if not WINDOW.fullmatch(at):
+                    raise ValueError("pick a time for the change window")
+                from workshop import deploy
+                when = deploy.window(at)  # ValueError (passed, nonsense) goes back to the page as the message
+                if when - datetime.now(UTC) > PAGE_WINDOW_MAX:  # the page runs one job at a time: a long wait would lock it
+                    raise ValueError(f"on this page a window can be at most {int(PAGE_WINDOW_MAX.total_seconds() // 60)} minutes ahead "
+                                     "(the page runs one step at a time); for a later one use the terminal: workshop deploy apply ... --at HH:MM")
+                out += ["--at", at]
         return out
 
     def start(self, step: str, params: dict[str, Any]) -> dict[str, Any]:
@@ -502,7 +532,7 @@ class Board:
             raise fdata.DataError("that is not a device name")
         if prefix and not PREFIX.fullmatch(prefix):
             raise fdata.DataError("a prefix looks like 10.20.20.0/24")
-        if topic == "diff" and against == "predicted":
+        if topic in ("diff", "reach") and against == "predicted":
             snap, other = fdata.prediction_pair(self.settings, self.shown_evidence())  # the prediction's own baseline, and only if it is current
         else:
             snap = fdata.snapshot_for(self.settings, self.shown_evidence(), snapshot or "baseline")
@@ -691,6 +721,9 @@ def _stages(lab, base, cand, m, prs, deployed, verified) -> list[dict[str, str]]
     hint = "workshop deploy gates, render, apply, readback --pr N --confirm <sha7>"
     if not deployed:
         out.append(stage("deploy", "Deploy", "todo", "not deployed", hint))
+    elif deployed.get("predicted") is False:  # Predict overridden: the old way, shown on purpose; never "done"
+        out.append(stage("deploy", "Deploy", "failed", "deployed WITHOUT a prediction: verify it, then back it out",
+                         "workshop verify probe, collect, upload, wait, compare; then workshop revert plan, apply, compare"))
     elif deployed.get("readback_problems") is None and "readback_problems" in deployed:
         # applied, not read back yet: the deploy isn't finished until r4 has been checked (an older record has no such key)
         out.append(stage("deploy", "Deploy", "active", f"applied {len(deployed.get('lines', [])) - 2} change(s); next: read it back", "workshop deploy readback"))

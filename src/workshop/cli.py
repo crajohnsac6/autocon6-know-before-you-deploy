@@ -13,10 +13,11 @@ makes, and ends with its evidence and the next step.
 
 Looking inside Forward's model:
 
-    workshop data inventory | topology | interfaces | routes | vulns | diff | blast | checks   what Forward knows
+    workshop data inventory | topology | interfaces | routes | vulns | diff | reach | blast | checks   what Forward knows
     workshop path [--port N] [--compare predicted]        one flow, hop by hop
     workshop nqe <file or query>                         ask Forward anything
     workshop link down|up                                exercise 1's change: shut r2's link to r4, or bring it back
+    workshop intent                                      lab 2: your lab 1 path searches, as Forward intent checks
     workshop mcp                                         let Copilot use Forward's read-only MCP tools on this lab (run at Codespace start)
     workshop probe                                       real packets from the client, right now
 
@@ -42,6 +43,7 @@ import shutil
 import sys
 import time
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 
 from workshop import config, trace
@@ -112,6 +114,12 @@ def main(argv: list[str] | None = None) -> int:
     d.add_argument("--with-caveats", default="", metavar="IDS",
                    help="deploy a FAIL on purpose (local evidence only): name every failing requirement you accept, comma-separated. "
                         "For the exercise that shows Predict was right; back it out with `workshop revert`")
+    d.add_argument("--without-predict", action="store_true",
+                   help="deploy the candidate with no prediction at all (Predict overridden): the way many changes go out today, kept to "
+                        "show what happens. Forward judges it afterwards (`workshop verify`); the record goes into a change ticket (a GitHub issue)")
+    d.add_argument("--at", metavar="HH:MM",
+                   help="apply in a change window: the gates are checked now, then again at that time against Forward's newest "
+                        "snapshot; if anything changed by then, nothing is sent (apply only; at most 3 hours ahead)")
     v = sub.add_parser("verify", help="one step at a time: probe, collect, upload, wait, compare")
     v.add_argument("step", nargs="?", choices=["probe", "collect", "upload", "wait", "compare"],
                    help="probe: real packets from the client · collect/upload/wait: the network after the change, into Forward · "
@@ -149,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
     u.add_argument("--port", type=int, default=8765)
     u.add_argument("--evidence", default="evidence/evidence.json")
     dt = sub.add_parser("data", help="what Forward knows: devices, routes, CVEs, and what a change did to the routing tables")
-    dt.add_argument("topic", choices=["inventory", "topology", "interfaces", "routes", "vulns", "diff", "blast", "checks"])
+    dt.add_argument("topic", choices=["inventory", "topology", "interfaces", "routes", "vulns", "diff", "changes", "reach", "blast", "checks"])
     dt.add_argument("--snapshot", default="baseline", help="baseline | previous | predicted | post | <snapshot id> (diff, checks: the 'before' side)")
     dt.add_argument("--against", help="diff and checks: the 'after' side (diff defaults to predicted if there is one, else post; checks only compares if you give one)")
     dt.add_argument("--device", default="", help="only this device (routes, diff); for blast, where traffic starts: r1, or r1 Ethernet3 (default r1)")
@@ -167,11 +175,12 @@ def main(argv: list[str] | None = None) -> int:
     pa.add_argument("--snapshot", default="baseline", help="baseline | previous | predicted | post | a snapshot id")
     pa.add_argument("--compare", default="", help="a second snapshot (e.g. predicted): trace both and say what changed")
     pa.add_argument("--evidence", default="evidence/evidence.json", help="where 'predicted' comes from")
-    nq = sub.add_parser("nqe", help="run an NQE query (a file such as nqe/stale_bgp_advertisements.nqe, or the query text) and show its rows")
-    nq.add_argument("query", help="a .nqe file, or the query itself in quotes")
+    nq = sub.add_parser("nqe", help="run an NQE query: one of Forward's built-in library queries by its path (\"/L3/BGP/Established BGP Peerings\"), a .nqe file, or the query text")
+    nq.add_argument("query", help="a Forward library path (starts with /), a .nqe file, or the query itself in quotes")
     nq.add_argument("--snapshot", default="baseline", help="baseline | predicted | post | a snapshot id")
     nq.add_argument("--evidence", default="evidence/evidence.json", help="where 'predicted' comes from")
     sub.add_parser("collector", help="download the headless collector for the server's release")
+    sub.add_parser("intent", help="lab 2: turn your path searches into Forward intent checks, and see Forward's verdict on your baseline")
     sub.add_parser("status", help="where this lab is in the loop")
     lk = sub.add_parser("link", help="exercise 1's change: shut r2's link to r4 (down), or bring it back (up), over NAPALM")
     lk.add_argument("state", choices=["down", "up"])
@@ -359,7 +368,7 @@ def _baseline(settings: config.Settings, args) -> int:
     with _display_only():  # every way a baseline is taken registers them: step by step, all at once, or the lab page's catch-up
         from workshop import intent
 
-        intent.register(settings, str(snapshot_id), log)
+        intent.register(settings, str(snapshot_id), log, quiet=True)  # lab 1 is facts only; lab 2 introduces them
     log("")
     log(f"baseline: {report.status.value}")
     with _display_only():
@@ -505,7 +514,8 @@ def _change_analysis(settings: config.Settings, m, out: Path, requirements_path:
     def build() -> None:
         try:
             with Forward(settings, quick=True) as fwd:
-                done["text"] = reports.analysis(fwd.c, m, baseline_results=_requirements_on_baseline(settings, fwd, m, requirements_path),
+                pr = (os.environ.get("GITHUB_REF", "").split("/") + ["", "", ""])[2] if os.environ.get("GITHUB_REF", "").startswith("refs/pull/") else ""
+                done["text"] = reports.analysis(fwd.c, m, pr=pr, baseline_results=_requirements_on_baseline(settings, fwd, m, requirements_path),
                                                 ai=os.environ.get("WORKSHOP_REPORT_AI", "1") != "0", log=log)
         except Exception as exc:  # noqa: BLE001 - display only
             done["error"] = f"{type(exc).__name__}: {str(exc)[:160]}"
@@ -548,6 +558,24 @@ def _deploy(settings: config.Settings, args) -> int:
             return EXIT[exc.status]
         log("Next: workshop verify probe")
         return 0
+    if getattr(args, "without_predict", False):
+        if step not in ("apply", None) or args.pr or args.evidence or args.with_caveats or getattr(args, "at", None):
+            log("--without-predict goes with `workshop deploy apply --confirm <sha7>` alone: there is no prediction, pull request or caveat to name")
+            return EXIT["ERROR"]
+        if not args.confirm:
+            log("say which candidate you mean to send: --confirm <the first 7 characters of its sha256> (`workshop status` shows it)")
+            return EXIT["ERROR"]
+        try:
+            record = deploy.apply_unpredicted(settings, args.confirm, log)
+        except deploy.Refused as exc:
+            log(f"NOT DEPLOYED ({exc.status}): {exc}")
+            return EXIT[exc.status]
+        except Exception as exc:  # noqa: BLE001
+            log(f"workshop deploy apply: {type(exc).__name__}: {exc}")
+            return EXIT["ERROR"]
+        log("Sent and committed on r4 WITHOUT A PREDICTION" + (f" (change ticket #{record['ticket']})" if record.get("ticket") else "")
+            + ". Next: workshop deploy readback, then the verify steps: Forward judges it now, on the real network.")
+        return 0
     if not (args.pr or args.evidence):
         log("say which change: --pr N (a merged pull request) or --evidence evidence/evidence.json (a local prediction)")
         return EXIT["ERROR"]
@@ -579,6 +607,26 @@ def _deploy(settings: config.Settings, args) -> int:
             for line in render.lines_for(rendered):
                 log(line)
             return 0
+        if getattr(args, "at", None):
+            if step != "apply":
+                log("--at is for `workshop deploy apply`: the window is when it sends the change")
+                return EXIT["ERROR"]
+            try:
+                when = deploy.window(args.at)
+            except ValueError as exc:
+                log(f"NOT SCHEDULED (ERROR): {exc}")
+                return EXIT["ERROR"]
+            log(f"Change window {when:%H:%M %Z}. Checking every gate now, so you know it is ready:")
+            deploy.check(settings, evidence, args.confirm, log, check_github=not args.no_github, caveats=caveats)
+            log(f"Every gate holds now. Nothing is sent before {when:%H:%M}. Then every gate runs again, against Forward's newest")
+            log("snapshot and the live routers: if someone changes a router or takes a newer baseline in the meantime, nothing is sent")
+            log("(STALE), and you predict again. The approval is for this network, not for whatever it becomes.")
+            try:
+                deploy.wait_until(when, log)
+            except KeyboardInterrupt:
+                log("cancelled before the window: nothing was sent")
+                return EXIT["ERROR"]
+            log(f"{datetime.now(deploy.event_tz()):%H:%M:%S}: the window is open. Checking every gate again, then applying:")
         if step == "apply":
             deploy.apply(settings, evidence, args.confirm, log, check_github=not args.no_github, caveats=caveats)
             log("Sent and committed on r4" + (" WITH CAVEATS (Predict said FAIL)" if caveats else "") + ". Next: workshop deploy readback")
@@ -673,6 +721,66 @@ def _post_change_report(settings: config.Settings, evidence: Path, result: dict,
         reports.attach(int(pr) if pr else None, "Post-change report", path.read_text(), log)
 
 
+def _verify_unpredicted(settings: config.Settings, args) -> int:
+    """Verify after `deploy apply --without-predict`: the same five steps, but compare asks the requirements of the real network
+    for the first time, and the post-change report goes into the change ticket."""
+    import contextlib
+
+    from workshop import reports, show, steps, verify
+
+    record = json.loads((settings.state_dir / "deploy.json").read_text())
+    step = getattr(args, "step", None)
+    try:
+        if step == "probe":
+            probes = verify.probe_unpredicted(settings, log)
+            log("")
+            log(f"Evidence: {sum(p['ok'] for p in probes)} of {len(probes)} flows behave as the requirements say, on the real network. Next: workshop verify collect")
+            return 0
+        if step == "collect":
+            steps.collect_step(settings, "post", log)
+            return 0
+        if step == "upload":
+            steps.upload_step(settings, "post", log, extra=f"after {record['candidate_sha256'][:12]} (no prediction)")
+            return 0
+        if step == "wait":
+            steps.wait_step(settings, "post", log)
+            return 0
+        if step != "compare":
+            log("after a deploy without a prediction, run the steps one at a time: `workshop verify probe`, `collect`, `upload`, `wait`, `compare`")
+            return EXIT["ERROR"]
+        got = steps.processed_snapshot(settings, "post")
+        probed = steps.load(settings, "probes", "workshop verify probe")
+        log("checking the collection is of the network as it is now ...")
+        show.napalm(log, "r1-4", "cli('show running-config')   hashed and compared with the post-change collection's fingerprint")
+        if steps.live_fingerprint(settings) != got["fingerprint"]:
+            log("the routers changed after `workshop verify collect`: run `workshop verify probe`, `collect`, `upload` and `wait` again, then compare")
+            return EXIT["ERROR"]
+        result = verify.compare_unpredicted(settings, got["snapshot"], got["fingerprint"], probed["probes"], log)
+    except Exception as exc:  # noqa: BLE001
+        log(f"workshop verify{' ' + step if step else ''}: {exc}")
+        return EXIT["ERROR"]
+    with _display_only():
+        log("")
+        log("Requirements on the real network, asked for the first time (nothing was predicted):")
+        for line in report_.requirement_table(result["rows"]):
+            log(line)
+    text = ""
+    with contextlib.suppress(Exception):
+        text = reports.unpredicted_post_change(settings, record, result)
+        path = reports.save(settings, "post-change.md", text)
+        log("")
+        log(f"Artifact: {path}")
+        log("  What it is for: the post-change report of a change nobody predicted: what Forward found after it went live.")
+        reports.attach(None, "Post-change report (no prediction)", text, log, ticket=record.get("ticket"))
+    log("")
+    log(f"verify: {result['outcome']} after a deploy without a prediction (post-change snapshot {result['post_snapshot_id']})")
+    if result["outcome"] == "FAIL":
+        failed = ", ".join(r["id"] for r in result["rows"] if r["collected"] != "PASS")
+        log(f"What this means: Forward found it, but only after the change was live: {failed}. Back it out: `workshop revert plan`,")
+        log("then `workshop revert apply --confirm <hash>`. Predict asks the same questions before any router changes.")
+    return 0 if result["outcome"] == "PASS" else EXIT["FAIL"]
+
+
 def _verify(settings: config.Settings, args) -> int:
     import contextlib
 
@@ -681,6 +789,9 @@ def _verify(settings: config.Settings, args) -> int:
     from workshop.forward import Forward
 
     banner(settings, "verify" + (f" {args.step}" if getattr(args, "step", None) else ""))
+    deployed_record = settings.state_dir / "deploy.json"
+    if not args.evidence and deployed_record.is_file() and json.loads(deployed_record.read_text()).get("predicted") is False:
+        return _verify_unpredicted(settings, args)
     evidence = args.evidence
     if not evidence:
         deployed = settings.state_dir / "deploy.json"
@@ -1010,7 +1121,7 @@ def _revert(settings: config.Settings, args) -> int:
                 log(f"Artifact: {path}")
                 log("  What it is for: the backout record: what was undone, proof the configs are the baseline's, and Forward's confirmation from a fresh")
                 log("  collection. It goes on the same ticket as the change.")
-                reports.attach(record.get("pr"), "Backout", path.read_text(), log)
+                reports.attach(record.get("pr"), "Backout", path.read_text(), log, ticket=record.get("ticket"))
             log("")
             if result["outcome"] == "MATCH":
                 log(f"revert: MATCH (snapshot {result['snapshot']}). What this means: Forward agrees the network is the one you started with:")
@@ -1127,12 +1238,20 @@ def _nqe(settings: config.Settings, args) -> int:
     from workshop.forward import Forward
 
     path = settings.repo_root / args.query
+    library = args.query.startswith("/") and not path.is_file()  # Forward's own library (repository "fwd"), by path
     query = path.read_text() if args.query.endswith(".nqe") and path.is_file() else args.query
     try:
         snap = data.snapshot_for(settings, settings.repo_root / args.evidence, args.snapshot)
-        show.sdk(log, f'nqe.query(<{"the query in " + args.query if query is not args.query else "your query"}>, snapshot_id="{snap}")')
         with Forward(settings) as fwd:
-            rows = [dict(r) for r in fwd.c.nqe.query(query, snapshot_id=snap)]
+            if library:
+                from forward_sdk.nqe.query_ref import QueryRef
+
+                show.sdk(log, f'nqe.query(QueryRef.by_path("{args.query}", repository="fwd"), snapshot_id="{snap}")   a query that ships with Forward')
+                rows = [dict(r) for r in fwd.c.nqe.query(QueryRef.by_path(args.query, repository="fwd"), snapshot_id=snap)]
+                query = f"(Forward's built-in library query {args.query})"
+            else:
+                show.sdk(log, f'nqe.query(<{"the query in " + args.query if query is not args.query else "your query"}>, snapshot_id="{snap}")')
+                rows = [dict(r) for r in fwd.c.nqe.query(query, snapshot_id=snap)]
     except data.DataError as exc:
         log(f"workshop nqe: {exc}")
         return EXIT["ERROR"]
@@ -1169,7 +1288,7 @@ def _data(settings: config.Settings, args) -> int:
     try:
         snap = data.snapshot_for(settings, evidence, args.snapshot)
         against = ""
-        if args.topic == "diff":
+        if args.topic in ("diff", "reach", "changes"):
             for which in ([args.against] if args.against else ["predicted", "post"]):
                 try:
                     if which == "predicted":  # the prediction's own baseline, and only for the change in the candidate file now
@@ -1195,6 +1314,37 @@ def _data(settings: config.Settings, args) -> int:
     return 0
 
 
+def _intent(settings: config.Settings, args) -> int:
+    """Lab 2's first step: the path searches from lab 1, written down as Forward intent checks."""
+    from workshop import intent, requirements, steps
+
+    banner(settings, "intent")
+    snap = steps.baseline_snapshot(settings)
+    if not snap:
+        log("no baseline yet: take one first (`workshop baseline collect`, `upload`, `wait`, `check`)")
+        return EXIT["ERROR"]
+    reqs = requirements.load(settings.repo_root / "requirements" / "candidate.yml", root=settings.repo_root)
+    log("In lab 1 you asked Forward path questions one at a time. Written down once (requirements/candidate.yml), they become")
+    log("intent checks that Forward answers on every snapshot, by itself. (Your baseline already handed them to Forward; this")
+    log("is what Forward now holds.)")
+    for p in intent.planned(reqs):
+        if p["kind"] == "NQE":
+            log(f"  NQE query  {p['what']:<52} -> NQE check        {p['id']}")
+        else:
+            port = p["what"].split(":")[-1].split()[0]
+            asked = "workshop path" + ("" if port == "8080" else f" --port {port}")
+            log(f"  {asked:<30} {p['what']:<40} -> {p['kind']:<11} check  {p['id']}")
+    try:
+        intent.register(settings, str(snap), log)
+    except Exception as exc:  # noqa: BLE001
+        log(f"workshop intent: Forward could not answer just now ({type(exc).__name__}: {str(exc)[:120]}); run it again")
+        return EXIT["ERROR"]
+    log("")
+    log("What this means: these are your intent, held by Forward. Next, change the network and let them judge it")
+    log("(`workshop data checks --snapshot previous --against baseline` shows which ones moved).")
+    return 0
+
+
 def _link(settings: config.Settings, args) -> int:
     from workshop import deploy, link
 
@@ -1214,7 +1364,8 @@ def _link(settings: config.Settings, args) -> int:
         log("What this means: r2 can't reach r4 directly any more. The service should still work (BGP reroutes through r3), but not")
         log("the way requirements/candidate.yml says it must (PATH-SERVICE: through r2). Now let Forward see it: the four baseline steps")
         log("again (`workshop baseline collect`, `upload`, `wait`, `check`), then what changed: `workshop data diff --snapshot previous")
-        log("--against baseline` (routes) and `workshop data checks --snapshot previous --against baseline` (your intent checks).")
+        log("--against baseline` (routes), `workshop data reach --snapshot previous --against baseline` (which sites lost reach), and")
+        log("`workshop path` (how the service gets there now).")
     else:
         log("What this means: r2's link to r4 is back, its configuration exactly as before. Take the baseline once more (the four steps):")
         log("that one, with every line PASS, is the one the rest of the day starts from.")
@@ -1247,8 +1398,10 @@ def _status(settings: config.Settings, args) -> int:
         except (OSError, ValueError):
             return None
 
+    sha7 = ""
     try:
-        changes = len(candidate.load(settings.repo_root / "candidate" / "r4-bgp.eos").changes)
+        cand = candidate.load(settings.repo_root / "candidate" / "r4-bgp.eos")
+        changes, sha7 = len(cand.changes), cand.sha256[:7]
     except (candidate.CandidateError, OSError):
         changes = 0
     base, deployed, verified = read("baseline.json"), read("deploy.json"), read("verify.json")
@@ -1257,6 +1410,8 @@ def _status(settings: config.Settings, args) -> int:
         deployed = verified = None
     for line in report_.status_lines(base, deployed, verified, changes):
         log(line)
+    if changes and sha7:
+        log(f"  Candidate hash {sha7}   (what --confirm takes)")
     return 0
 
 

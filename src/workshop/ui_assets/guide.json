@@ -175,6 +175,24 @@
      "cmd": "workshop link down"
     },
     {
+     "step": "changes all",
+     "label": "What changed: everything Forward sees",
+     "note": "Forward's catalog of the two baselines: links, configs, interfaces, routes, ARP/MAC, ACLs, reachability between sites, and Forward's own built-in BGP, interface and LLDP queries, before against after.",
+     "cmd": "workshop data changes --snapshot previous --against baseline"
+    },
+    {
+     "step": "changes routes",
+     "label": "What changed: routes",
+     "note": "Forward's route diff between your previous baseline and the newest one: every route that moved, on every router.",
+     "cmd": "workshop data diff --snapshot previous --against baseline"
+    },
+    {
+     "step": "changes reach",
+     "label": "What changed: reachability",
+     "note": "Forward's location connectivity diff: which sites can still reach which. Routes can move while reachability stays the same: that's rerouting.",
+     "cmd": "workshop data reach --snapshot previous --against baseline"
+    },
+    {
      "step": "link up",
      "label": "Undo the change",
      "note": "Bring r2's link to r4 back, exactly as before. Then the four baseline steps once more: that baseline is the one the rest of the day starts from.",
@@ -937,7 +955,7 @@
   "end": "13:00",
   "due": [
    [
-    "10:05",
+    "09:30",
     "baseline"
    ],
    [

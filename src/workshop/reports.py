@@ -16,6 +16,7 @@ cannot be written never changes a verdict, a gate or an exit code.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -117,19 +118,81 @@ def _every_host(client, b: str, a: str) -> list[str]:
             "| Host | Baseline | Predicted |", "|---|---|---|", *rows, ""]
 
 
-def analysis(client, m, *, baseline_results: list[dict[str, Any]] | None = None, ai: bool = True, log=None) -> str:
+STALE_QUERY = LAB_TOPOLOGY.parent.parent / "nqe" / "stale_bgp_advertisements.nqe"
+PREFIX_RE = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}/\d{1,2}\b")
+
+
+def change_request(client, m, *, pr: str = "") -> list[str]:
+    """The change request a reviewer reads first: why (Forward's finding on the baseline), the risks Forward already shows on
+    the baseline, the exact config, and when it goes in. Each claim comes from Forward or the candidate file; a part Forward
+    can't answer says so."""
+    from workshop.lab import SERVICE_IP
+
+    b = str(m.baseline_snapshot_id)
+    text = m.candidate_text or ""
+    # the evidence keeps the candidate's commands, not its comments: the change request's title is in the file itself
+    raw = _try(None, "candidate file", lambda: (LAB_TOPOLOGY.parent.parent / m.candidate_path).read_text())[0] or text
+    notes = [line.lstrip("!").strip() for line in raw.splitlines() if line.strip().startswith("!")]
+    config = [line.rstrip() for line in text.splitlines() if line.strip() and not line.strip().startswith("!")]
+    title = next((n for n in notes if n.lower().startswith("change request")), "Change request")
+    out = ["## 1 · The change request", "", f"**{title}**", ""]
+
+    rows, why = _try(None, "stale advertisements on the baseline", lambda: [dict(r) for r in client.nqe.query(STALE_QUERY.read_text(), snapshot_id=b)])
+    prefixes = sorted({p for r in rows or [] for p in PREFIX_RE.findall(json.dumps(r))})
+    if rows is None:
+        out += [f"**Why.** Forward's stale-advertisement query could not be read on the baseline ({why}).", ""]
+    else:
+        found = (f"finds {len(rows)} BGP `network` statement(s) on r4 for prefixes r4 has no route to: "
+                 + ", ".join(f"`{p}`" for p in prefixes)
+                 + ". They advertise nothing real today, and they are a standing invitation to attract traffic for a prefix that isn't ours.") \
+            if rows else "finds no stale advertisement: on this baseline there is nothing left for this change to retire."
+        out += [(f"**Why: Forward found it.** On the baseline (snapshot `{b}`), the NQE query `{STALE_QUERY.name}` (also a "
+                 f"Forward intent check: `workshop intent`) {found}"), ""]
+
+    hosts = lab_hosts()
+    paths = {name: _try(None, f"path {name}", lambda ip=ip: _outcome(client, b, ip, SERVICE_IP, 8080))[0] for name, ip in hosts.items()}
+    via_r4 = [n for n, p in paths.items() if p and p.startswith("✅") and "r4" in p]
+    unanswered = [n for n, p in paths.items() if p is None]
+    out += ["**Risks already identified** before anyone wrote config:", ""]
+    if hosts and unanswered:
+        out.append(f"- **r4 also advertises the live service prefix.** Forward could not trace {len(unanswered)} of {len(hosts)} hosts "
+                   f"on the baseline just now; of the rest, {len(via_r4)} reach the service ({SERVICE_IP}, TCP 8080) through r4.")
+    elif hosts:
+        out.append(f"- **r4 also advertises the live service prefix.** Forward traces {len(via_r4)} of {len(hosts)} hosts to the service "
+                   f"({SERVICE_IP}, TCP 8080) through r4 on the baseline. Retire the wrong `network` line and they lose it.")
+    out.append("- **TCP 2222 must stay blocked** (MGMT-DENY, r1's `CLIENT-IN` ACL). Only r4's BGP advertisements are in scope.")
+    if m.results:
+        def watched() -> set[str]:
+            from workshop import intent, requirements
+            root = LAB_TOPOLOGY.parent.parent
+            return {p["id"] for p in intent.planned(requirements.load(root / "requirements" / "candidate.yml", root=root))}
+        checks = _try(None, "intent checks", watched)[0] or set()
+        out.append("- **Written down as requirements:** " + "; ".join(f"**{_cell(r['id'])}** {_cell(r.get('title', ''))}" for r in m.results) + "."
+                   + (f" {', '.join(sorted(checks))} are also registered as Forward intent checks, so every snapshot (the baseline, this "
+                      "prediction, the network after the deploy) is judged against them." if checks else ""))
+    out += ["", (f"**The config being applied** (`{m.candidate_path}`, sha256 `{m.candidate_sha256[:12]}`): exactly these lines go to r4, "
+                 "over NAPALM, and nothing else. The hash ties the approval to them."), "", "```", *config, "```", ""]
+    sha7, target = m.candidate_sha256[:7], f"--pr {pr}" if pr else "--pr <this PR>"
+    out += [(f"**When.** After approval (a merge, which needs this check green), in a change window: "
+             f"`workshop deploy apply {target} --confirm {sha7} --at HH:MM` (or **Apply at the window** on the lab page). At the "
+             "window every gate runs again against Forward's newest snapshot and the live routers: if the network changed since "
+             "this prediction, nothing is sent."), "",
+            src("NQE (the stale-advertisement intent check) and path analysis, on the baseline; Predict › change set",
+                f"nqe.query · path_search.get_paths · change_sets (id {m.change_set_id})"), ""]
+    return out
+
+
+def analysis(client, m, *, baseline_results: list[dict[str, Any]] | None = None, ai: bool = True, log=None, pr: str = "") -> str:
     """The Predict analysis page, as markdown. ``client`` is a Forward SDK client; ``m`` the prediction's evidence manifest."""
     b, a = str(m.baseline_snapshot_id), str(m.predicted_snapshot_id)
     sd = client.snapshot_diff_details
-    change = [line.strip() for line in (m.candidate_text or "").splitlines() if "network" in line]
     out = [f"# Change analysis: {MARK.get(m.status, m.status)}", "",
            (f"Candidate `{m.candidate_path}` (sha256 `{m.candidate_sha256[:12]}`) on lab `{m.lab_id}`, predicted against baseline snapshot `{b}`. "
             f"Predicted snapshot `{a}`, change set `{m.change_set_id}`. Generated {_now()}."), "",
            "> This is what Predict shows on its analysis page, collected through the SDK. Every section says where in Forward it came from.",
            "> Nothing here touched a router: it is all Forward's model of the network with the change applied.", ""]
 
-    out += ["## 1 · The change", "", "```", *change, "```", "",
-            src("Predict › change set (its commands for r4)", f"change_sets (id {m.change_set_id})"), ""]
+    out += change_request(client, m, pr=pr)
 
     out += ["## 2 · The requirements (what the gate judges)", "",
             f"Overall: **{MARK.get(m.status, m.status)}**. {m.reason}".rstrip(), "",
@@ -173,9 +236,19 @@ def analysis(client, m, *, baseline_results: list[dict[str, Any]] | None = None,
         bo = base_obs.get(r["id"], {})
         out.append(f"| **{_cell(r['id'])}** | {_cell(r.get('expected', ''))} | {_cell(bo.get('observed', '·'))} | {_cell(r.get('observed', ''))} |")
     out += _every_host(client, b, a)
-    pairs, why = _try(None, "location connectivity diff", lambda: _dump(sd.get_connectivity_diff_location_pairs(before_snapshot_id=b, after_snapshot_id=a, type="ALL")))
-    out += ["", "Forward's location-to-location connectivity diff: " + ("see the raw answer" if pairs else f"not shown ({why})."), "",
-            src("Predict › paths (and Reachability, where enabled)", "path_search.get_paths · snapshot_diff_details.get_connectivity_diff_location_pairs"), ""]
+    from workshop import data as fdata
+
+    table, why = _try(None, "location connectivity diff", lambda: fdata.reach(client, b, a))
+    if table is None:
+        out += ["", f"Forward's location-to-location connectivity diff: not shown ({why}).", ""]
+    else:
+        out += ["", "### Reachability, subnet to subnet (Forward's connectivity diff)", "", table.summary, ""]
+        if table.rows:
+            out += ["| " + " | ".join(table.columns) + " |", "|" + "---|" * len(table.columns)]
+            out += ["| " + " | ".join(_cell(r.get(c, "")) for c in table.columns) + " |" for r in table.rows[:20]]
+            out.append("")
+    out += [
+            src("Predict › paths (and Reachability, where enabled)", "path_search.get_paths · snapshot_diffs.wait_for_location_pairs"), ""]
 
     from workshop import intent
 
@@ -276,6 +349,47 @@ def pre_change(m, gates_passed: list[str], plan: dict[str, Any] | None, *, cavea
 # ---- 3. post-change -------------------------------------------------------------------------
 
 
+def unpredicted_post_change(settings, record: dict[str, Any], result: dict[str, Any]) -> str:
+    """The post-change report for a change deployed without a prediction: what Forward found once it was live."""
+    from workshop import data as fdata
+    from workshop import intent
+    from workshop.forward import Forward
+
+    outcome = result.get("outcome", "?")
+    b, a = str(record.get("baseline_snapshot_id", "")), str(result.get("post_snapshot_id", ""))
+    failed = [r for r in result.get("rows", []) if r.get("collected") != "PASS"]
+    out = [f"# Post-change report: {MARK.get(outcome, outcome)} (deployed without a prediction)", "",
+           (f"Deployed {record.get('finished_at', '')} · candidate sha256 `{str(record.get('candidate_sha256', ''))[:12]}` · "
+            f"**Predict overridden** · {_now()}"), ""]
+    out += ["> Nobody asked Forward before this change. These answers came after it was live: "
+            + (f"**{len(failed)} requirement(s) fail on the real network.**" if failed else "every requirement holds.") , ""]
+    out += ["## What was sent", "", "```", *[line for line in record.get("lines", [])], "```", ""]
+    out += ["## Requirements on the real network", "", "| Requirement | Verdict | What Forward saw |", "|---|---|---|"]
+    out += [f"| **{_cell(r['id'])}** {_cell(r.get('title', ''))} | {MARK.get(r['collected'], r['collected'])} | {_cell(r.get('observed', ''))} |"
+            for r in result.get("rows", [])]
+    out += ["", "| Live probe | Requirement | Observed |", "|---|---|---|"]
+    out += [f"| TCP {p['port']} | {p['expected']} | {'✅' if p['ok'] else '❌'} {p['observed']} |" for p in result.get("probes", [])]
+    out.append("")
+    try:
+        with Forward(settings, quick=True) as fwd:
+            out += intent.section(fwd.c, b, a, before_label=f"Baseline `{b}`", after_label=f"After the change `{a}`",
+                                  title="Forward's intent checks, before and after")
+            table, _ = _try(None, "reachability", lambda: fdata.reach(fwd.c, b, a))
+            if table is not None:
+                out += ["", "## Reachability, site to site (Forward's connectivity diff)", "", table.summary, ""]
+                if table.rows:
+                    out += ["| " + " | ".join(table.columns) + " |", "|" + "---|" * len(table.columns)]
+                    out += ["| " + " | ".join(_cell(r.get(c, "")) for c in table.columns) + " |" for r in table.rows[:20]]
+                    out.append("")
+    except Exception as exc:  # noqa: BLE001 - display only
+        out += [f"(Forward's intent checks and reachability could not be read just now: {type(exc).__name__})", ""]
+    out += ["## Backout", "", ("`workshop revert plan`, then `workshop revert apply --confirm <hash>`, then the baseline steps and "
+            "`workshop revert compare`."), "",
+            ("**The lesson:** every one of these answers was available before the change. `workshop predict` asks them of "
+             "Forward's model of the network with the change applied, before any router is touched."), ""]
+    return "\n".join(out)
+
+
 def post_change(record: dict[str, Any], result: dict[str, Any], *, routing=None, pr: int | None = None, backout: dict[str, Any] | None = None) -> str:
     outcome = result.get("outcome", "?")
     lines = [line for line in record.get("lines", []) if "network" in line]
@@ -355,18 +469,21 @@ def save(settings, name: str, text: str) -> Path:
     return path
 
 
-def attach(pr: int | None, title: str, text: str, log) -> bool:
-    """Post the report on the pull request (the ticket). False, with a line saying why, if it cannot: the report is still on disk."""
-    if not pr:
+def attach(pr: int | None, title: str, text: str, log, *, ticket: int | None = None) -> bool:
+    """Post the report on the pull request (the ticket), or on the change ticket (a GitHub issue) for a change deployed without
+    one. False, with a line saying why, if it cannot: the report is still on disk."""
+    if not pr and not ticket:
         return False
+    where = f"pull request #{pr}" if pr else f"change ticket #{ticket}"
     try:
         from workshop import github
 
-        github.comment(pr, f"<details open><summary><b>{title}</b></summary>\n\n{text}\n</details>")
-        log(f"  → attached to pull request #{pr} as a comment ({title})")
+        body = f"<details open><summary><b>{title}</b></summary>\n\n{text}\n</details>"
+        github.comment(pr, body) if pr else github.comment_ticket(int(ticket), body)
+        log(f"  → attached to {where} as a comment ({title})")
         return True
     except Exception as exc:  # noqa: BLE001 - display only
-        log(f"  (could not attach {title} to pull request #{pr}: {type(exc).__name__}: {str(exc)[:120]}; it is saved locally)")
+        log(f"  (could not attach {title} to {where}: {type(exc).__name__}: {str(exc)[:120]}; it is saved locally)")
         return False
 
 

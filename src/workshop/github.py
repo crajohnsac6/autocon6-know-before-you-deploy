@@ -97,6 +97,18 @@ def comment(number: int, body: str) -> None:
     _call(f"commenting on PR #{number}", pr.create_issue_comment, body[:65000])
 
 
+def open_ticket(title: str, body: str) -> int:
+    """Open a GitHub issue in the seat repository: the change ticket for a deploy made without a pull request."""
+    issue = _call("opening the change ticket (a GitHub issue)", repo().create_issue, title=title[:200], body=body[:65000])
+    return int(issue.number)
+
+
+def comment_ticket(number: int, body: str) -> None:
+    """Add a comment to the change ticket (a GitHub issue)."""
+    issue = _call(f"reading ticket #{number}", repo().get_issue, number)
+    _call(f"commenting on ticket #{number}", issue.create_comment, body[:65000])
+
+
 def upsert_comment(number: int, marker: str, body: str) -> None:
     """One comment per pull request that carries ``marker``: edited in place on later runs, so a pull request pushed five times
     still has one change analysis, the newest."""
@@ -183,6 +195,14 @@ def download_pr_evidence(number: int, head_sha: str, destination: Path) -> Path:
     return _download(number, head_sha, destination, ("success", "failure"))
 
 
+def _predict_job(run) -> str | None:
+    """The conclusion of the run's forward/predict job (None while it runs, or if the run has no such job)."""
+    try:
+        return next((j.conclusion for j in run.jobs() if "predict" in str(j.name).lower()), None)
+    except Exception:  # noqa: BLE001 - unknown is not success
+        return None
+
+
 def _download(number: int, head_sha: str, destination: Path, conclusions: tuple[str, ...]) -> Path:
     import requests
 
@@ -190,7 +210,13 @@ def _download(number: int, head_sha: str, destination: Path, conclusions: tuple[
     runs = _call("listing forward/predict runs", lambda: list(r.get_workflow(WORKFLOW).get_runs(head_sha=head_sha)[:20]))
     good = [run for run in runs if run.conclusion in conclusions]
     if not good:
-        raise GitHubError(f"no finished ({'/'.join(conclusions)}) forward/predict run on PR #{number}'s final commit {head_sha[:7]}")
+        # The run may still be going only because the advisory forward/advice job hasn't finished: what deploy needs is the
+        # forward/predict job's result (and its evidence artifact, uploaded by that job). The separate "check passed" gate
+        # still has to hold, so this accepts nothing the check itself didn't pass.
+        good = [run for run in runs if run.conclusion is None and _predict_job(run) in conclusions]
+    if not good:
+        raise GitHubError(f"no finished ({'/'.join(conclusions)}) forward/predict run on PR #{number}'s final commit {head_sha[:7]} "
+                          "yet: if the check just went green, try again in a minute")
     artifact = next((a for a in _call("listing the run's artifacts", lambda: list(good[0].get_artifacts())) if a.name == ARTIFACT), None)
     if artifact is None:
         raise GitHubError(f"the forward/predict run for PR #{number} kept no {ARTIFACT} artifact")

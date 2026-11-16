@@ -10,7 +10,7 @@
 
 ### Correct the change (10 min)
 
-On your `retire-all` branch (check the bottom-left), correct `candidate/r4-bgp.eos` so it retires only the stale
+On your `retire-all` branch (check the bottom-left; if you opened exercise 3's PR from the Your lab page, it's the `change-…` branch the page made), correct `candidate/r4-bgp.eos` so it retires only the stale
 advertisements: delete the `no network 10.20.20.0/24` line and keep these two under `address-family ipv4`:
 ```
       no network 10.20.30.0/24
@@ -41,25 +41,34 @@ in its table should be **PASS**:
 
 ### Approve (10 min)
 
-In this repository, merging is the approval. There's no separate approve button here; in real life you'd also require
-a reviewer. The repository only allows the merge once **forward/predict** has passed.
+**You are the approver.** In this repository, merging is the approval: read the green check's summary (what Predict
+judged, the change request at the top of the Change analysis), then merge. There's no separate approve button here; in
+real life you'd also require a second reviewer. The repository only allows the merge once **forward/predict** has passed.
 
 1. Wait for **forward/predict** to go green. GitHub can take a minute or two to start it: press **Refresh** at the top
    of the pull request page now and then. Merge as soon as forward/predict is green. **forward/advice** is advisory
    (Forward AI's review), can take a few minutes, and isn't required.
-2. In the **GitHub Pull Requests** panel, open the PR and press **Merge Pull Request**. (The same button is on the
-   PR's page on github.com.)
+2. In the **GitHub Pull Requests** panel, open the PR and scroll to the bottom of its overview: **Merge Pull Request**
+   *using method* **Squash and Merge** (already chosen). Press **Merge Pull Request**. (On github.com it's the PR page's
+   **Squash and merge** button.)
 3. It opens a form with the commit message. Scroll down and press **Squash and Merge**. Squash means your branch's
    commits become one commit on `main`.
-4. VS Code then asks what to delete: choose **Delete Local Branch** (not *Suspend Codespace*, which stops your lab).
-   That also switches you back to `main`.
-5. Optional: if you have a `retire-one` PR from exercise 2, try merging it to see the refusal, then close it.
+4. VS Code then asks what to delete: **Delete local branch** is already ticked and *Suspend Codespace* isn't (leave it
+   that way: it would stop your lab). Press **OK**. That also switches you back to `main`. Then pull the merge: the circular-arrows icon next to the branch name in the
+   status bar (or `git pull`).
+5. Optional: if you still have a `retire-one` PR from exercise 2, look at it: GitHub won't merge it, because its
+   forward/predict check is red (it may also say the branch has conflicts now; that's the merge you just made). Close it.
+
+*On github.com instead:* the PR's **Conversation** tab, the green **Squash and merge** button at the bottom, then
+**Confirm squash and merge**. Then in your Codespace: `git switch main` and `git pull`.
+*Hold My Beer (terminal):* `gh pr merge <N> --squash`, then `git switch main && git pull`. (`--squash` matters: this
+repository refuses plain merge commits.)
 
 ### What you just proved
 
 The only way to merge is a green check, so approval is a person looking at evidence and not a hunch. That holds no matter who wrote the change or when.
 
-**Behind?** No red PR of your own? Make the fix directly: retire only the two stale advertisements, open the PR, and merge it when it is green.
+**Behind?** No red PR of your own? From `main`, make the fix on a new branch: tick only the two stale prefixes on the Your lab page's Change stage and press **Open pull request** (it makes the branch for you), or `git switch -c fix-it`, edit, commit, push, `gh pr create --fill`. Merge it when it is green.
 
 ## Finished early?
 

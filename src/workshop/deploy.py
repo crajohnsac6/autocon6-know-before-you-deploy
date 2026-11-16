@@ -10,15 +10,58 @@ import fcntl
 import hashlib
 import json
 import re
+import time
 from collections.abc import Callable
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from workshop import candidate, executor, fingerprint, github, lab, requirements, show
 from workshop.config import Settings
 from workshop.evidence import Manifest
 from workshop.forward import Forward
+
+WINDOW_MAX = timedelta(hours=3)
+
+
+def event_tz():
+    """The event's time zone (agenda.json, via the generated guide.json): a Codespace's clock runs in UTC, the room doesn't."""
+    from zoneinfo import ZoneInfo
+
+    try:
+        return ZoneInfo(json.loads((Path(__file__).parent / "ui_assets" / "guide.json").read_text())["pace"]["tz"])
+    except Exception:  # noqa: BLE001 - no agenda: this machine's own zone
+        return datetime.now().astimezone().tzinfo
+
+
+def window(at: str, now: datetime | None = None) -> datetime:
+    """A change window's start: ``HH:MM`` (today, in the event's time zone) or an ISO time with its offset (the lab page
+    sends one). Raises ValueError for a time that has passed or is more than three hours away."""
+    now = (now or datetime.now(UTC)).astimezone(event_tz())
+    at = at.strip()
+    if re.fullmatch(r"\d{1,2}:\d{2}", at):
+        hour, minute = (int(x) for x in at.split(":"))
+        if hour > 23 or minute > 59:
+            raise ValueError(f"'{at}' is not a time of day")
+        when = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    else:
+        try:
+            when = datetime.fromisoformat(at)
+        except ValueError:
+            raise ValueError(f"'{at}' is not a time: say HH:MM") from None
+        when = (when if when.tzinfo else when.replace(tzinfo=event_tz())).astimezone(event_tz())
+    if when <= now:
+        raise ValueError(f"the window {when:%H:%M} has already started: pick a later time, or apply now")
+    if when - now > WINDOW_MAX:
+        raise ValueError(f"the window {when:%H:%M} is more than {int(WINDOW_MAX.total_seconds() // 3600)} hours away: today's lab won't wait that long")
+    return when
+
+
+def wait_until(when: datetime, log, *, clock=time.time, sleep=time.sleep) -> None:
+    """Wait for the window, saying how long is left once a minute (and nothing else: nothing is sent while waiting)."""
+    while (left := when.timestamp() - clock()) > 0:
+        log(f"  {datetime.fromtimestamp(clock(), event_tz()):%H:%M:%S}: {int(left // 60)} min {int(left % 60)} s to the window; nothing sent yet")
+        sleep(min(60.0, left))
 
 
 class Refused(RuntimeError):
@@ -172,6 +215,71 @@ def apply(settings: Settings, evidence: Path, confirm: str, log: Callable[[str],
         return record
 
 
+def apply_unpredicted(settings: Settings, confirm: str, log: Callable[[str], None], *, ticket: bool = True) -> dict:
+    """``workshop deploy apply --without-predict``: the way changes often go out today, kept to prove a point (owner decision
+    2026-11-15). Predict is overridden: no prediction, no requirement judged before the write. What still holds: you confirm
+    the hash of exactly what is sent, the lab lock, and no router changed since your baseline. Forward judges the result
+    afterwards (``workshop verify``), and the record goes into a change ticket (a GitHub issue)."""
+    with lab_lock(settings):
+        try:
+            cand = candidate.load(settings.repo_root / "candidate" / "r4-bgp.eos")
+        except candidate.CandidateError as exc:
+            raise Refused("ERROR", f"the candidate is out of scope (only r4's BGP advertisements): {exc}") from None
+        if confirm != cand.sha256[:7]:
+            raise Refused("ERROR", f"to deploy, confirm the candidate you mean to send: --confirm {cand.sha256[:7]}")
+        if len(cand.lines) <= len(candidate.HEADER):
+            raise Refused("ERROR", "candidate/r4-bgp.eos holds no change to send")
+        try:
+            base = json.loads(settings.state("baseline.json").read_text())
+        except (OSError, ValueError):
+            raise Refused("ERROR", "no baseline yet: take one first (`workshop baseline collect`, `upload`, `wait`, `check`)") from None
+        log("checking what still holds without a prediction ...")
+        live = fingerprint.of(lab.live_configs(settings))
+        if live != base.get("fingerprint"):
+            raise Refused("STALE", "the routers' configs are not your baseline's: run the baseline steps first")
+        log(f"  ✓ you confirmed candidate {cand.sha256[:7]}, the file you mean to send")
+        log(f"  ✓ all four routers still match your baseline ({base.get('snapshot')})")
+        log("  !! PREDICT OVERRIDDEN: nobody has asked Forward what this change will do. It goes out on trust, the way many changes")
+        log("  !! do today. Forward will tell you afterwards (`workshop verify`), on the real network.")
+        lines = list(cand.lines)
+        show.napalm(log, candidate.DEVICE, f"{len(lines)} lines, never predicted: {show.NAPALM_APPLY}")
+        started = datetime.now(UTC)
+        applied = executor.apply(settings, candidate.DEVICE, lab.mgmt_ips(settings)[candidate.DEVICE], lines)
+        if applied.output.strip():
+            log(f"  {candidate.DEVICE} computed this diff for the session and committed it:")
+            for line in applied.output.splitlines():
+                log(f"    {line}")
+        number = None
+        if ticket:
+            try:
+                from workshop import github
+
+                body = ("**Change request CHG-AC6-0001: retire the stale BGP advertisements on r4.**\n\n"
+                        "**Deployed without a prediction (Predict overridden).** No requirement was judged before the change; "
+                        "Forward judges the real network afterwards, and the post-change report is added here.\n\n"
+                        f"Config sent to r4 (sha256 `{cand.sha256[:12]}`):\n\n```\n" + "\n".join(cand.lines) + "\n```\n\n"
+                        f"Baseline: Forward snapshot `{base.get('snapshot')}`.")
+                number = github.open_ticket(f"CHG-AC6-0001 · {settings.lab_id} · deployed WITHOUT a prediction", body)
+                log(f"  → change ticket opened: GitHub issue #{number}")
+            except Exception as exc:  # noqa: BLE001 - the ticket is the record, not a gate
+                log(f"  (could not open the change ticket: {type(exc).__name__}: {str(exc)[:120]}; the record is saved locally)")
+        try:
+            post_fingerprint = fingerprint.of(lab.live_configs(settings))
+        except Exception:  # noqa: BLE001
+            post_fingerprint = ""
+        record = {
+            "evidence": "", "predicted": False, "ticket": number, "candidate_sha256": cand.sha256,
+            "baseline_snapshot_id": str(base.get("snapshot", "")), "baseline_fingerprint": base.get("fingerprint", ""),
+            "post_fingerprint": post_fingerprint, "predicted_snapshot_id": "", "started_at": started.isoformat(timespec="seconds"),
+            "finished_at": datetime.now(UTC).isoformat(timespec="seconds"), "lines": list(applied.lines), "device_diff": applied.output,
+            "readback_problems": None, "predicted_status": "NONE (Predict overridden)", "caveats": [],
+        }
+        settings.state("deploy.json").write_text(json.dumps(record, indent=2) + "\n")
+        for name in ("steps/collect-post.json", "steps/upload-post.json", "steps/probes.json", "verify.json"):
+            settings.state(name).unlink(missing_ok=True)
+        return record
+
+
 def readback(settings: Settings, log: Callable[[str], None]) -> dict:
     """``workshop deploy readback``: read r4's BGP section back and check every line of the change is there."""
     path = settings.state("deploy.json")
@@ -186,7 +294,8 @@ def readback(settings: Settings, log: Callable[[str], None]) -> dict:
     path.write_text(json.dumps(record, indent=2) + "\n")
     if problems:
         raise Refused("ERROR", "the change was sent but the router does not show it as expected: " + "; ".join(problems))
-    log(f"  ✓ {candidate.DEVICE} shows all {len(lines) - len(candidate.HEADER)} change(s): r4 holds exactly the lines Predict judged (hash {record['candidate_sha256'][:12]})")
+    judged = "the lines you sent (never predicted)" if record.get("predicted") is False else "the lines Predict judged"
+    log(f"  ✓ {candidate.DEVICE} shows all {len(lines) - len(candidate.HEADER)} change(s): r4 holds exactly {judged} (hash {record['candidate_sha256'][:12]})")
     return record
 
 

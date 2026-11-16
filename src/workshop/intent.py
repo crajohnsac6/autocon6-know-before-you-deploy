@@ -141,9 +141,20 @@ def section(client, before: str, after: str, *, before_label: str, after_label: 
     return out
 
 
-def register(settings, snapshot_id: str, log) -> None:
+def register(settings, snapshot_id: str, log, *, quiet: bool = False) -> None:
     """Register the intent checks on the network (from requirements/candidate.yml) and print Forward's verdict on
-    ``snapshot_id``: after every baseline, step by step, all at once, or from a reset. Display only."""
+    ``snapshot_id``: after every baseline, step by step, all at once, or from a reset. Display only. ``quiet``: register
+    (and place the routers in their Forward locations) without printing; lab 1 is facts only, and intent checks are
+    introduced in lab 2 (`workshop intent`)."""
+    if quiet:  # nothing printed: not the hand-written lines, nor the SDK trace lines (the page's feed still records the calls)
+        from workshop import trace
+
+        previous = trace._sink
+        trace.set_sink(None)
+        try:
+            return register(settings, snapshot_id, lambda _line: None)
+        finally:
+            trace.set_sink(previous)
     from workshop import requirements
     from workshop.forward import Forward
 
@@ -157,6 +168,12 @@ def register(settings, snapshot_id: str, log) -> None:
         pass
     files = {vars(r)["id"]: str(vars(r).get("query_file")) for r in reqs.requirements}
     with Forward(settings, quick=True) as fwd:
+        try:  # sites for Forward's connectivity diff (see workshop/locations.py)
+            from workshop import locations
+
+            locations.ensure(fwd.c, settings, log)
+        except Exception as exc:  # noqa: BLE001 - display only
+            log(f"  (Forward locations not set: {type(exc).__name__}: {str(exc)[:120]})")
         log("")
         log("Your critical flows and the NQE finding, as Forward's own intent checks (they judge every snapshot from now on):")
         for r in ensure(fwd.c, str(snapshot_id), reqs, log=log):

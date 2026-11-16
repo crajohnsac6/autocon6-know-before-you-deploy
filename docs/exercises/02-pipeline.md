@@ -9,6 +9,49 @@ able to explain every line of the result.*
 
 ## Core
 
+### First, the way it's often done: deploy without Predict (10 min, don't do this at work)
+
+Before the pipeline, send a change the way many still go out: straight to the router, with nobody asking first. Then
+let Forward tell you what happened. You'll undo it at the end.
+
+0. **Ask your own question.** Lab 1 used Forward's ready-made queries. This one is ours, in Git:
+   `cat nqe/stale_bgp_advertisements.nqe`, then `workshop nqe nqe/stale_bgp_advertisements.nqe`. It looks at r4's BGP
+   `network` statements and r4's routes, and lists the statements with no route behind them: `10.20.30.0/24` and
+   `10.20.40.0/24`. They advertise nothing and look exactly like the live `10.20.20.0/24` line. **That's today's change
+   request** (CHG-AC6-0001): retire them. It follows us all morning.
+
+   **Then turn your path searches into intent checks.** In lab 1 you asked Forward path questions one at a time
+   (`workshop path`, `workshop path --port 2222`). Write them down once, and Forward answers them on every snapshot by
+   itself. *Page:* the **Deploy** stage, **Turn my path searches into intent checks**. *Terminal:* `workshop intent`.
+   You'll see each path search, the check it becomes (*Existential*: 8080 gets through, through r2; *Isolation*: 2222
+   stays blocked) and Forward's verdict on your baseline: PASS. These are what will judge your next change.
+1. **The change.** *I'm Too Young to Die:* the **Change** stage, tick **all three** prefixes, **Write
+   candidate/r4-bgp.eos**. *Hold My Beer:* add the three lines yourself:
+   ```
+         no network 10.20.20.0/24
+         no network 10.20.30.0/24
+         no network 10.20.40.0/24
+   ```
+   Don't commit it. It looks finished: all three statements, valid EOS.
+2. **Deploy it, no questions asked.** *Page:* the **Deploy** stage, type the candidate's hash (the Change stage shows
+   it), **Deploy without Predict**. *Terminal:* `workshop deploy apply --without-predict --confirm <sha7>`. It says
+   **PREDICT OVERRIDDEN** and opens a **change ticket**: a GitHub issue in your repository (**Issues** tab).
+   Then **4. Read back** (or `workshop deploy readback`).
+3. **Find out.** The five verify steps (Verify stage, or `workshop verify probe`, `collect`, `upload`, `wait`,
+   `compare`). The probe already says 8080 is blocked; compare says **FAIL**: APP-EXISTING, ROUTE-SERVICE and
+   PATH-SERVICE. Open the change ticket: Forward's verdict is there, with its intent checks before and after and the
+   sites that lost the Service. All true. All after the customers noticed.
+4. **Back it out.** **Revert: plan** (or `workshop revert plan`), type the hash it prints, **Revert: apply**
+   (`workshop revert apply --confirm <sha7>`), the four baseline steps, then **Revert: compare**: **MATCH**, and the
+   backout lands in the same ticket.
+5. **Empty the candidate** for what comes next: the Change stage with nothing ticked, **Write candidate/r4-bgp.eos**
+   (or `git restore candidate/r4-bgp.eos`).
+
+**What you just learned:** every answer Forward gave was true and useful, and every one came too late. The rest of
+the morning asks the same questions *before* the change: Predict.
+
+**Behind?** Skip this part: the pipeline below is the core.
+
 ### Make a small change (10 min)
 
 Start small: retire **one** stale advertisement.
@@ -38,7 +81,7 @@ This is the first Git in the workshop, so each step says what it's for.
 4. **Publish (push):** press **Publish Branch**. *Pushing copies your branch to GitHub, where the pipeline can see it.*
    A notification may also ask whether VS Code should periodically run `git fetch`: either answer is fine.
 5. **Pull request:** in **GitHub Pull Requests**, press **Create Pull Request** (or the notification that offers it),
-   check that it goes from `retire-one` into `main`, and press **Create**. *A pull request asks for your branch to be
+   check that it goes from `retire-one` into `main`, and press **Create** (at the bottom of that form; on a small screen, Ctrl+Enter in the title box does the same). *A pull request asks for your branch to be
    merged into `main`. It's where the review happens, and where the forward/predict check runs.*
 
 > **From the lab page.** On the **Predict** step, **Open pull request** does steps 1 and 3 to 5 for you (edit the file
