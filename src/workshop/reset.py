@@ -75,6 +75,10 @@ def run(settings: Settings, to: int, log) -> None:
     log("")
     log("2. Routers: a netlab redeploy, so every router is exactly as netlab first configured it (3 to 10 minutes)")
     try:
+        lab.require_image(settings)  # before the old lab is taken down, not after
+    except lab.LabError as exc:
+        raise ResetError(str(exc)) from exc
+    try:
         lab.netlab(settings, log, "down", "--cleanup")
     except lab.LabError as exc:
         log(f"  (netlab down did not finish cleanly: {str(exc).splitlines()[0][:120]}; building it again anyway)")

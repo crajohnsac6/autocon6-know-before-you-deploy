@@ -12,11 +12,11 @@ with it?" Here that second question gets its own stage in the pipeline, and it r
 
 ## Core
 
-1. Your Codespace is open on your fork, and `workshop connect` has given it a Forward lab (the
-   [README](../../README.md#running-it-yourself) has both steps). Wait for setup to finish, which takes a few minutes. It is done when
-   the terminal at the bottom shows a prompt starting with `(workshop)`, like this:
+1. Your Codespace is open on your fork, you have imported the cEOS image, and `workshop connect` has given it a Forward lab
+   (the [README](../../README.md#running-it-yourself) has the steps). Wait for setup to finish, which takes a few minutes. It is done when
+   the terminal at the bottom shows a prompt like this:
    ```
-   (workshop) @yourname ➜ /workspaces/autocon6-know-before-you-deploy (main) $
+   @yourname ➜ /workspaces/autocon6-know-before-you-deploy (main) $
    ```
    If VS Code asks whether you trust the folder, choose **Trust Folder & Continue**.
    The **Your lab** page (port 8765) shows where you are and the next step. If the pane beside your editor is blank, open the **Ports** tab at the bottom, find port **8765**, and click the globe icon to open it in a browser tab. Keep that tab open. Lost it later? `workshop status` prints its address.
@@ -53,7 +53,7 @@ with it?" Here that second question gets its own stage in the pipeline, and it r
    ```
    show ip bgp summary
    ```
-   Two neighbors (r2 and r3) should be **Established**. Type `exit` to leave the router and get your `(workshop)` prompt back.
+   Two neighbors (r2 and r3) should be **Established**. Type `exit` to leave the router and get your prompt back.
 
 ### Open the box: what `workshop up` actually did (optional, while it runs)
 

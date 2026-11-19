@@ -77,6 +77,34 @@ def _docker():
     return trace.docker(docker.from_env(timeout=20))
 
 
+def router_image(root: Path) -> str:
+    """The cEOS image the lab's routers run (lab/netlab-defaults.yml)."""
+    return yaml.safe_load((root / "lab" / "netlab-defaults.yml").read_text())["devices"]["eos"]["clab"]["image"]
+
+
+def has_image(name: str) -> bool:
+    """Is this image in the local Docker (Docker SDK)? cEOS can't be pulled: Arista's licence means each person imports it."""
+    import docker.errors
+
+    try:
+        _docker().images.get(name)
+    except docker.errors.ImageNotFound:
+        return False
+    return True
+
+
+def no_image_help(name: str) -> str:
+    return (f"{name} is not imported: download the 64-bit cEOS-lab image ({name.split(':')[-1]}) from Arista with your own account, "
+            f"drag it into the Codespace, then: docker import <that file> {name}  (see the repository's README)")
+
+
+def require_image(settings: Settings) -> None:
+    """Refuse before anything is torn down when the routers' image is missing: netlab would fail after the old lab is gone."""
+    image = router_image(settings.repo_root)
+    if not has_image(image):
+        raise LabError(no_image_help(image))
+
+
 def containers() -> dict[str, str]:
     """Container name -> docker state for this lab."""
     found = _docker().containers.list(all=True, filters={"label": "containerlab=autocon6"})
@@ -150,6 +178,7 @@ def up(settings: Settings, log) -> None:
     """Start the lab if needed: netlab builds it and configures every router itself. Safe to re-run (a running lab is left as it is)."""
     states = containers()
     if not states:
+        require_image(settings)
         if (lab_dir(settings) / "netlab.lock").exists():
             # The containers are gone but netlab's files from the last lab are not (a Codespace rebuild, or containers removed):
             # `netlab up` would refuse ("another lab running in this directory"). netlab clears its own leftovers first.
@@ -163,6 +192,7 @@ def up(settings: Settings, log) -> None:
     elif any(state != "running" for state in states.values()):
         # Stopped containers lose their data-plane links and their configuration: netlab removes them and builds them again.
         log("the lab was stopped (a Codespace restart does that): netlab removes it and builds it again ...")
+        require_image(settings)
         netlab(settings, log, "down", "--cleanup")
         netlab(settings, log, "up", "-p", "clab")
     else:

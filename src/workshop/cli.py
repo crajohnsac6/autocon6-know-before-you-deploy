@@ -325,6 +325,9 @@ def _doctor(settings: config.Settings, args) -> int:
     collector = sorted(settings.collector_home.glob("*/fwd/bin/fwd-headless")) if settings.collector_home.exists() else []
     row(True, "headless collector", str(collector[-1].parent.parent.parent.name) if collector else "not downloaded yet (workshop collector)")
     try:  # the Docker SDK reports a missing or stopped docker daemon itself
+        image = lab.router_image(settings.repo_root)
+        present = lab.has_image(image)
+        row(present, "router image", image if present else lab.no_image_help(image))
         states = lab.containers()
         running, expected = sum(1 for s in states.values() if s == "running"), lab.node_count(settings.repo_root / "lab" / "topology.yml")
         built_before = (settings.repo_root / "lab" / "hosts.yml").is_file()  # netlab wrote it: this Codespace had a lab
