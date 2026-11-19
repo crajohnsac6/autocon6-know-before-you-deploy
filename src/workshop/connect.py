@@ -8,7 +8,7 @@ public repository does the work.
 How it works, in four steps:
 
 1. **The Codespace asks.** ``workshop connect`` makes a one-time key pair (kept in the state directory), and opens a
-   prefilled issue on the public repository, "Forward lab request", carrying only the public half. The person presses Submit.
+   prefilled issue on the public repository, "Forward lab request", carrying only the public half. The person presses Create.
 2. **GitHub Actions answers.** The issue starts a workflow on the public repository (the code on its default branch,
    with the AutoCon6 org admin's API key as an Actions secret, which nobody can read back). ``python -m workshop.connect
    issue`` reads who opened the issue from GitHub's own event, makes or renews their lab with forward-python-sdk, and
@@ -35,6 +35,7 @@ The encryption (``seal``/``unseal``): X25519 key agreement with a one-time sende
 from __future__ import annotations
 
 import base64
+import itertools
 import json
 import os
 import re
@@ -431,7 +432,7 @@ def have_credentials(root: Path, now: datetime | None = None) -> bool:
 
 
 def request_url(public_key: str, repo: str) -> str:
-    body = f"{MARKER}\nKey: {public_key}\nFrom: {repo}\n\nOpened by `workshop connect`. Press **Submit**: a lab is made for you and the reply goes to your Codespace."
+    body = f"{MARKER}\nKey: {public_key}\nFrom: {repo}\n\nOpened by `workshop connect`. Press **Create**: a lab is made for you and the reply goes to your Codespace."
     return f"https://github.com/{PUBLIC_REPO}/issues/new?" + urllib.parse.urlencode({"title": TITLE, "body": body})
 
 
@@ -494,21 +495,27 @@ def run(root: Path, state_dir: Path, log, *, wait: float = 300, poll: float = 10
         asked = datetime.now(UTC)
         _save(keyfile, private, public, asked)
     url = request_url(public, repo)
-    log("1. Open this link and press Submit (it asks for a Forward lab of your own, free for 14 days):")
+    log("1. Open this link (it opens by itself in a Codespace) and press Create (it asks for a Forward lab of your own, free for 14 days):")
     log(f"   {url}")
     if os.environ.get("BROWSER"):
         import webbrowser
 
         webbrowser.open(url)  # $BROWSER: Codespaces opens it in your own browser
     log("2. Waiting for the reply (usually under a minute) ...")
-    from github import Auth, Github
+    from github import Auth, Github, GithubException
 
     gh = Github(auth=Auth.Token(os.environ.get("GITHUB_TOKEN", ""))) if os.environ.get("GITHUB_TOKEN") else Github()
     public_repo = gh.get_repo(PUBLIC_REPO)
     deadline = time.monotonic() + wait
     while time.monotonic() < deadline:
         try:
-            sealed = find_reply(list(public_repo.get_issues(creator=login, state="all", sort="created", direction="desc")[:5]), public, since=asked)
+            # islice, not [:5]: PyGithub's list raises IndexError when slicing an empty result (no request yet)
+            recent = list(itertools.islice(public_repo.get_issues(creator=login, state="all", sort="created", direction="desc"), 5))
+            sealed = find_reply(recent, public, since=asked)
+        except GithubException as exc:  # GitHub busy or briefly unreachable: keep waiting
+            log(f"   (GitHub didn't answer this time: {exc.status}; still waiting)")
+            time.sleep(poll)
+            continue
         except Refused as exc:
             log(f"No lab: {exc}")
             # Shown now: from here on this refusal is old news, and the next run waits for a new answer (the key stays, so a
@@ -529,7 +536,7 @@ def run(root: Path, state_dir: Path, log, *, wait: float = 300, poll: float = 10
             log(f"   Saved in {path} (only you can read it). Next: workshop collector (downloads Forward's collector), then workshop doctor")
             return 0
         time.sleep(poll)
-    log("No reply yet. If you pressed Submit, run `workshop connect` again in a minute (it keeps waiting for the same request).")
+    log("No reply yet. If you pressed Create, run `workshop connect` again in a minute (it keeps waiting for the same request).")
     return 2
 
 

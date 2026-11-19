@@ -25,7 +25,8 @@ out the live service, two routers away, and it's perfectly valid config. Catchin
 
 ### In a GitHub Codespace (easiest)
 
-1. **Fork this repository**, then on your fork: **Code → Codespaces → Create codespace** (4 cores).
+1. **Fork this repository**, then on your fork: **Code → Codespaces → Create codespace** (4 cores). When VS Code asks whether you
+   trust the authors of the files, choose **Trust Folder & Continue** (it's this repository; the terminal needs it).
 2. **Import Arista's cEOS image, version 4.36.0.1F.** We can't redistribute it: download the 64-bit cEOS-lab image from
    Arista with your own account, drag it into the Codespace, then `docker import <that file> ceos:4.36.0.1F` and
    `bash .devcontainer/bootstrap.sh`.
