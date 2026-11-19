@@ -1,6 +1,6 @@
-# Take-home labs (public repository only): every week, delete labs older than 14 days (network, user and keys) and any
-# take-home user whose network is gone. Only names of the exact take-home shape are touched. Code: src/workshop/takehome.py.
-name: take-home lab reaper
+# Forward labs (public repository only): every week, delete labs older than 14 days (network, user and keys) and any
+# lab user whose network is gone. Only names of the exact lab shape are touched. Code: src/workshop/connect.py.
+name: Forward lab reaper
 
 on:
   schedule:
@@ -11,14 +11,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: takehome-reap
+  group: forward-lab-reaper
   cancel-in-progress: false
 
 jobs:
   reap:
     if: github.repository == 'forwardnetworks/autocon6-know-before-you-deploy'
     runs-on: ubuntu-latest
-    environment: takehome  # the admin key lives in this environment: only the default branch may use it
+    environment: forward-labs  # the admin key lives in this environment: only the default branch may use it
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -27,8 +27,8 @@ jobs:
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - run: uv sync --frozen --no-dev
       - name: Reap labs older than 14 days
-        run: uv run python -m workshop.takehome reap
+        run: uv run python -m workshop.connect reap
         env:
           FORWARD_URL: https://fwd.app
-          FORWARD_ADMIN_KEY: ${{ secrets.TAKEHOME_FORWARD_KEY }}
-          FORWARD_ADMIN_SECRET: ${{ secrets.TAKEHOME_FORWARD_SECRET }}
+          FORWARD_ADMIN_KEY: ${{ secrets.FORWARD_LABS_ADMIN_KEY }}
+          FORWARD_ADMIN_SECRET: ${{ secrets.FORWARD_LABS_ADMIN_SECRET }}

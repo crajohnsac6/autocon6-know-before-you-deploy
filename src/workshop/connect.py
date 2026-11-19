@@ -1,35 +1,35 @@
 """Forward labs on request: a Forward lab of your own for working through the workshop (owner decision 2026-11-18).
 
 Who it's for: anyone in a GitHub Codespace on their own fork of the public repository, with no Forward account. They
-run ``workshop takehome``; a minute later their Codespace has a Forward network in the AutoCon6 org and an API key that
+run ``workshop connect``; a minute later their Codespace has a Forward network in the AutoCon6 org and an API key that
 can see only that network, in ``.env``. Nobody hands out credentials, and there is no server: GitHub Actions on the
 public repository does the work.
 
 How it works, in four steps:
 
-1. **The Codespace asks.** ``workshop takehome`` makes a one-time key pair (kept in the state directory), and opens a
-   prefilled issue on the public repository, "Lab request", carrying only the public half. The person presses Submit.
+1. **The Codespace asks.** ``workshop connect`` makes a one-time key pair (kept in the state directory), and opens a
+   prefilled issue on the public repository, "Forward lab request", carrying only the public half. The person presses Submit.
 2. **GitHub Actions answers.** The issue starts a workflow on the public repository (the code on its default branch,
-   with the AutoCon6 org admin's API key as an Actions secret, which nobody can read back). ``python -m workshop.takehome
+   with the AutoCon6 org admin's API key as an Actions secret, which nobody can read back). ``python -m workshop.connect
    issue`` reads who opened the issue from GitHub's own event, makes or renews their lab with forward-python-sdk, and
    replies on the issue with the credentials **encrypted to that public key**. The thread is public; the reply is
    readable only by the Codespace that asked.
 3. **The Codespace reads the reply,** decrypts it with its private half, and writes ``.env`` (0600).
-4. **A weekly workflow reaps** (``python -m workshop.takehome reap``): labs older than 14 days are deleted, network,
+4. **A weekly workflow reaps** (``python -m workshop.connect reap``): labs older than 14 days are deleted, network,
    user and keys. Asking again after that gives a fresh lab.
 
 Safety rules (from the design review):
 
-- Every Forward name comes from the requester's GitHub numeric id (``autocon6-th-<id>``), never the login, which can be
+- Every Forward name comes from the requester's GitHub numeric id (``autocon6-lab-<id>``), never the login, which can be
   renamed and reused by someone else. The id comes from the issue event, so nobody can ask for someone else's lab.
 - The lab's user holds ADMIN on its one network and no org role; every new key is checked to see only that network
   before it is handed out.
-- A first issue never adopts an existing user. The reaper touches only the exact names ``autocon6-th-<digits>`` (network)
-  and ``autocon6-th-<digits>@autocon6.invalid`` (user).
+- A first issue never adopts an existing user. The reaper touches only the exact names ``autocon6-lab-<digits>`` (network)
+  and ``autocon6-lab-<digits>@autocon6.invalid`` (user).
 - Forward is the record: the network's name carries the GitHub id and its creation time the age. No database.
 
 The encryption (``seal``/``unseal``): X25519 key agreement with a one-time sender key, HKDF-SHA256, AES-256-GCM, from the
-``cryptography`` library. Encoded as ``takehome:v1:<base64url(sender public key, nonce, ciphertext)>``.
+``cryptography`` library. Encoded as ``forward-lab:v1:<base64url(sender public key, nonce, ciphertext)>``.
 """
 
 from __future__ import annotations
@@ -48,12 +48,12 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-PREFIX = "autocon6-th"
+PREFIX = "autocon6-lab"
 EMAIL_DOMAIN = "autocon6.invalid"
 PUBLIC_REPO = "forwardnetworks/autocon6-know-before-you-deploy"
-TITLE = "Lab request"
-MARKER = "<!-- autocon6-takehome v1 -->"
-REPLY = "takehome:v1:"
+TITLE = "Forward lab request"
+MARKER = "<!-- autocon6-forward-lab v1 -->"
+REPLY = "forward-lab:v1:"
 LIFETIME = timedelta(days=14)
 MAX_LABS = 200
 AGAIN = timedelta(minutes=10)
@@ -66,13 +66,13 @@ KEY_LINE = re.compile(r"^Key: ([A-Za-z0-9_-]{43}=?)\s*$", re.MULTILINE)
 def names(github_id: int) -> tuple[str, str, str]:
     """(lab id, network name, user email) for a GitHub account id."""
     network = f"{PREFIX}-{github_id}"
-    return f"th-{github_id}", network, f"{network}@{EMAIL_DOMAIN}"
+    return f"lab-{github_id}", network, f"{network}@{EMAIL_DOMAIN}"
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Encryption: the reply on a public issue is readable only by the Codespace that asked.
 
-_INFO = b"autocon6-takehome v1"
+_INFO = b"autocon6-forward-lab v1"
 
 
 def keypair() -> tuple[bytes, str]:
@@ -122,7 +122,7 @@ def unseal(private_key: bytes, sealed: str) -> bytes:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
     if not sealed.startswith(REPLY):
-        raise ValueError("not a take-home reply")
+        raise ValueError("not a Forward lab reply")
     blob = _unb64(sealed[len(REPLY):].strip())
     eph_pub, nonce, body = blob[:32], blob[32:44], blob[44:]
     priv = X25519PrivateKey.from_private_bytes(private_key)
@@ -167,13 +167,13 @@ def _password() -> str:
 
 
 class Admin:
-    """The org admin's view of Forward, through forward-python-sdk. Every call the take-home makes is here."""
+    """The org admin's view of Forward, through forward-python-sdk. Every call `workshop connect` makes is here."""
 
     def __init__(self, url: str, key: str, secret: str) -> None:
         from forward_sdk import ForwardClient
 
         self.url = url
-        self.c = ForwardClient(url, username=key, password=secret, user_agent="autocon6-takehome")
+        self.c = ForwardClient(url, username=key, password=secret, user_agent="autocon6-forward-lab")
 
     def networks(self) -> list[Lab]:
         return [Lab(str(n.id), n.name, _when(getattr(n, "created_at", None))) for n in self.c.networks.list()]
@@ -216,7 +216,7 @@ class Admin:
         """(access key, secret) of a new API key for the lab user: Forward mints a key only for the signed-in user."""
         from forward_sdk import ForwardClient
 
-        with ForwardClient(self.url, username=email, password=password, user_agent="autocon6-takehome") as me:
+        with ForwardClient(self.url, username=email, password=password, user_agent="autocon6-forward-lab") as me:
             current = me.user_accounts.get_current_user()
             extra = (current.model_extra or {}) | ((current.user.model_extra or {}) if current.user else {})
             if extra.get("mustSetPassword"):
@@ -240,7 +240,7 @@ class Admin:
         from forward_sdk import ForwardClient
         from forward_sdk.errors import ForwardPermissionError
 
-        with ForwardClient(self.url, username=key, password=secret, user_agent="autocon6-takehome") as lab:
+        with ForwardClient(self.url, username=key, password=secret, user_agent="autocon6-forward-lab") as lab:
             seen = [str(n.id) for n in lab.networks.list()]
             if seen != [network_id]:
                 raise RuntimeError(f"the new key sees {len(seen)} networks, not just {network_id}")
@@ -290,7 +290,7 @@ def issue(admin: Admin, github_id: int, now: datetime | None = None) -> dict[str
     new = lab is None
     if new:
         if count >= MAX_LABS:
-            raise Refused(f"every take-home lab is in use ({MAX_LABS}): please try again in a few days")
+            raise Refused(f"every Forward lab is in use ({MAX_LABS}): please try again in a few days")
         if user:  # a user with no network is a leftover: never adopt it
             admin.delete_user(user)
         network_id = admin.create_network(network_name)
@@ -326,7 +326,7 @@ def issue(admin: Admin, github_id: int, now: datetime | None = None) -> dict[str
 
 
 def reap(admin: Admin, now: datetime | None = None) -> dict[str, list[str]]:
-    """Delete take-home labs older than LIFETIME, and take-home users whose network is gone."""
+    """Delete Forward labs older than LIFETIME, and lab users whose network is gone."""
     now = now or datetime.now(UTC)
     users = {}
     for uid, mail in admin.users():
@@ -379,11 +379,11 @@ def _answer_issue(event_path: str) -> int:
     match = KEY_LINE.search(body)
     try:
         if not match:
-            raise Refused("the request has no public key: open it with `workshop takehome` from your Codespace")
+            raise Refused("the request has no public key: open it with `workshop connect` from your Codespace")
         try:
             seal(match.group(1), b"check")  # a key that can't be sealed to is refused before Forward is touched
         except Exception as exc:
-            raise Refused("the request's key is not valid: open it with `workshop takehome` from your Codespace") from exc
+            raise Refused("the request's key is not valid: open it with `workshop connect` from your Codespace") from exc
         creds = issue(Admin(os.environ["FORWARD_URL"], os.environ["FORWARD_ADMIN_KEY"], os.environ["FORWARD_ADMIN_SECRET"]),
                       int((issue_.get("user") or {}).get("id") or 0))
         sealed = seal(match.group(1), json.dumps(creds).encode())
@@ -394,7 +394,7 @@ def _answer_issue(event_path: str) -> int:
         thread.create_comment(f"No lab this time: {exc}")
         print(f"refused: {exc}")
     except Exception as exc:  # noqa: BLE001 - a short public line; the details stay in the workflow log
-        thread.create_comment("Something went wrong making your lab; a maintainer has been told. Try `workshop takehome` again later.")
+        thread.create_comment("Something went wrong making your lab; a maintainer has been told. Try `workshop connect` again later.")
         print(f"error: {type(exc).__name__}: {exc}")
         thread.edit(state="closed")
         return 1
@@ -412,11 +412,11 @@ def _reap_now() -> int:
 # Codespace side: ask, wait for the reply, write .env.
 
 CREDENTIAL_KEYS = ("FORWARD_URL", "FORWARD_USERNAME", "FORWARD_PASSWORD", "FORWARD_NETWORK_ID", "WORKSHOP_LAB_ID")
-EXPIRES_KEY = "TAKEHOME_EXPIRES_AT"  # written with the credentials, so an expired lab asks again
+EXPIRES_KEY = "FORWARD_LAB_EXPIRES_AT"  # written with the credentials, so an expired lab asks again
 
 
 def have_credentials(root: Path, now: datetime | None = None) -> bool:
-    """Forward credentials already set and still good: Codespaces secrets, or a take-home lab in .env that hasn't expired."""
+    """Forward credentials already set and still good: Codespaces secrets, or a Forward lab in .env that hasn't expired."""
     env = root / ".env"
     text = env.read_text() if env.is_file() else ""
     if all(os.environ.get(k) for k in CREDENTIAL_KEYS[1:4]):
@@ -431,7 +431,7 @@ def have_credentials(root: Path, now: datetime | None = None) -> bool:
 
 
 def request_url(public_key: str, repo: str) -> str:
-    body = f"{MARKER}\nKey: {public_key}\nFrom: {repo}\n\nOpened by `workshop takehome`. Press **Submit**: a lab is made for you and the reply goes to your Codespace."
+    body = f"{MARKER}\nKey: {public_key}\nFrom: {repo}\n\nOpened by `workshop connect`. Press **Submit**: a lab is made for you and the reply goes to your Codespace."
     return f"https://github.com/{PUBLIC_REPO}/issues/new?" + urllib.parse.urlencode({"title": TITLE, "body": body})
 
 
@@ -449,7 +449,7 @@ def write_env(root: Path, creds: dict[str, Any]) -> Path:
 def find_reply(issues: list[Any], public_key: str, since: datetime | None = None) -> str | None:
     """The sealed reply to a request carrying public_key, posted by GitHub Actions; None while there is none.
 
-    A sealed reply on any of the matching requests wins: submitting the request twice is easy (each `workshop takehome`
+    A sealed reply on any of the matching requests wins: submitting the request twice is easy (each `workshop connect`
     reopens the same link), and the second one is refused ("still works") while the first holds the real reply. Only
     when no request has a reply does a refusal count, and then only one posted since this run began (``since``): an old
     refusal must not block asking again later."""
@@ -468,25 +468,25 @@ def find_reply(issues: list[Any], public_key: str, since: datetime | None = None
             if fresh and body.startswith("No lab this time") and refusal is None:
                 refusal = body.removeprefix("No lab this time: ")
             if fresh and body.startswith("Something went wrong") and refusal is None:
-                refusal = "the lab couldn't be made (a maintainer has been told). Try `workshop takehome` again later."
+                refusal = "the lab couldn't be made (a maintainer has been told). Try `workshop connect` again later."
     if refusal:
         raise Refused(refusal)
     return None
 
 
 def run(root: Path, state_dir: Path, log, *, wait: float = 300, poll: float = 10, renew: bool = False) -> int:
-    """``workshop takehome``: ask for a lab, wait for the reply, write .env. Exit 0 when .env holds credentials."""
+    """``workshop connect``: ask for a lab, wait for the reply, write .env. Exit 0 when .env holds credentials."""
     if not renew and have_credentials(root):
         log("Your Forward lab is set (in .env, or Codespaces secrets) and hasn't expired: nothing to do. "
-            "`workshop takehome --renew` asks for a new key.")
+            "`workshop connect --renew` asks for a new key.")
         return 0
     login, repo = os.environ.get("GITHUB_USER", ""), os.environ.get("GITHUB_REPOSITORY", "")
     if not (os.environ.get("CODESPACES") and login and repo):
-        log("`workshop takehome` runs in a GitHub Codespace on your fork of "
+        log("`workshop connect` runs in a GitHub Codespace on your fork of "
             f"{PUBLIC_REPO}: fork it on GitHub, open a Codespace on your fork, then run this there.")
         return 2
     state_dir.mkdir(parents=True, exist_ok=True)
-    keyfile = state_dir / "takehome.key"
+    keyfile = state_dir / "forward-lab.key"
     if keyfile.is_file():
         private, public, asked = _reload(keyfile)
     else:
@@ -519,7 +519,7 @@ def run(root: Path, state_dir: Path, log, *, wait: float = 300, poll: float = 10
             try:
                 creds = json.loads(unseal(private, sealed))
             except Exception:  # noqa: BLE001 - never a traceback; a reply for another key is not ours
-                log("The reply couldn't be opened with this Codespace's key. Run `workshop takehome` again to make a new request.")
+                log("The reply couldn't be opened with this Codespace's key. Run `workshop connect` again to make a new request.")
                 keyfile.unlink(missing_ok=True)
                 return 1
             path = write_env(root, creds)
@@ -529,7 +529,7 @@ def run(root: Path, state_dir: Path, log, *, wait: float = 300, poll: float = 10
             log(f"   Saved in {path} (only you can read it). Next: workshop collector (downloads Forward's collector), then workshop doctor")
             return 0
         time.sleep(poll)
-    log("No reply yet. If you pressed Submit, run `workshop takehome` again in a minute (it keeps waiting for the same request).")
+    log("No reply yet. If you pressed Submit, run `workshop connect` again in a minute (it keeps waiting for the same request).")
     return 2
 
 
@@ -561,10 +561,10 @@ def _reload(keyfile: Path) -> tuple[bytes, str, datetime]:
     return _unb64(data["private"]), data["public"], asked
 
 
-if __name__ == "__main__":  # GitHub Actions: python -m workshop.takehome issue|reap
+if __name__ == "__main__":  # GitHub Actions: python -m workshop.connect issue|reap
     what = sys.argv[1] if len(sys.argv) > 1 else ""
     if what == "issue":
         sys.exit(_answer_issue(os.environ["GITHUB_EVENT_PATH"]))
     if what == "reap":
         sys.exit(_reap_now())
-    sys.exit("usage: python -m workshop.takehome issue|reap")
+    sys.exit("usage: python -m workshop.connect issue|reap")

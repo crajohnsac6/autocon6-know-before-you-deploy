@@ -1,11 +1,11 @@
-# Take-home labs (public repository only): answers a "Lab request" issue opened by `workshop takehome` in someone's
+# Forward labs (public repository only): answers a "Forward lab request" issue opened by `workshop connect` in someone's
 # Codespace. It makes or renews that person's Forward lab in the AutoCon6 org and replies with the credentials encrypted
-# to the requesting Codespace's one-time key. Code: src/workshop/takehome.py.
+# to the requesting Codespace's one-time key. Code: src/workshop/connect.py.
 #
 # Safety: an issue starts this, but the code that runs is always this repository's default branch (an issue can't change
 # it), the issue text is only ever read as data by Python (never pasted into a shell), the requester's identity is the
 # issue author GitHub records, and the org admin key is an Actions secret: masked in logs, never given to forks.
-name: take-home lab request
+name: Forward lab request
 
 on:
   issues:
@@ -16,14 +16,14 @@ permissions:
   issues: write
 
 concurrency:  # one request per person at a time; nobody's request waits on anyone else's
-  group: takehome-${{ github.event.issue.user.id }}
+  group: forward-lab-${{ github.event.issue.user.id }}
   cancel-in-progress: false
 
 jobs:
   answer:
-    if: github.repository == 'forwardnetworks/autocon6-know-before-you-deploy' && contains(github.event.issue.body, '<!-- autocon6-takehome v1 -->')
+    if: github.repository == 'forwardnetworks/autocon6-know-before-you-deploy' && contains(github.event.issue.body, '<!-- autocon6-forward-lab v1 -->')
     runs-on: ubuntu-latest
-    environment: takehome  # the admin key lives in this environment: only the default branch may use it
+    environment: forward-labs  # the admin key lives in this environment: only the default branch may use it
     timeout-minutes: 10
     steps:
       - name: Check out the default branch
@@ -35,9 +35,9 @@ jobs:
       - name: Install the workshop tools
         run: uv sync --frozen --no-dev
       - name: Make or renew the lab, reply encrypted, close the issue
-        run: uv run python -m workshop.takehome issue
+        run: uv run python -m workshop.connect issue
         env:
           FORWARD_URL: https://fwd.app
-          FORWARD_ADMIN_KEY: ${{ secrets.TAKEHOME_FORWARD_KEY }}
-          FORWARD_ADMIN_SECRET: ${{ secrets.TAKEHOME_FORWARD_SECRET }}
+          FORWARD_ADMIN_KEY: ${{ secrets.FORWARD_LABS_ADMIN_KEY }}
+          FORWARD_ADMIN_SECRET: ${{ secrets.FORWARD_LABS_ADMIN_SECRET }}
           GITHUB_TOKEN: ${{ github.token }}

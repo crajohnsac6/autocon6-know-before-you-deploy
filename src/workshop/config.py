@@ -52,8 +52,8 @@ def load(start: Path | None = None) -> Settings:
     if missing:
         what = "missing settings: " + ", ".join(missing)
         if os.environ.get("CODESPACES") == "true":
-            raise SettingsError(what + "\nNo Forward lab here yet. Run `workshop takehome`: it gets you one of your own (free, 14 days).")
-        raise SettingsError(what + " (in a Codespace: `workshop takehome`; on your own machine: .env, see README.md)")
+            raise SettingsError(what + "\nNo Forward lab here yet. Run `workshop connect`: it gets you one of your own (free, 14 days).")
+        raise SettingsError(what + " (in a Codespace: `workshop connect`; on your own machine: .env, see README.md)")
     state = Path(os.path.expanduser(os.environ.get("WORKSHOP_STATE_DIR", "~/.local/state/autocon6"))) / lab_id
     collector = Path(os.path.expanduser(os.environ.get("FWD_HEADLESS_HOME", "~/.cache/autocon6/collector")))
     return Settings(

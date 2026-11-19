@@ -29,7 +29,7 @@ out the live service, two routers away, and it's perfectly valid config. Catchin
 2. **Import Arista's cEOS image, version 4.36.0.1F.** We can't redistribute it: download the 64-bit cEOS-lab image from
    Arista with your own account, drag it into the Codespace, then `docker import <that file> ceos:4.36.0.1F` and
    `bash .devcontainer/bootstrap.sh`.
-3. **Get a Forward lab:** `workshop takehome`. It opens a one-click "Lab request" issue on this repository; GitHub
+3. **Get a Forward lab:** `workshop connect`. It opens a one-click "Forward lab request" issue on this repository; GitHub
    Actions makes you a Forward network and an API key that sees only that network, and replies encrypted so only your
    Codespace can read it. A minute later the key is in your Codespace's `.env` (and, where GitHub allows it, in your
    fork's Actions secrets for the pull request check). The lab is free and lasts 14 days; run it again after that for a
@@ -60,7 +60,7 @@ WORKSHOP_LAB_ID=my-lab
 then `bash .devcontainer/bootstrap.sh`, `uv run workshop collector`, `uv run workshop doctor`, `uv run workshop up`.
 
 **The pull request gate on your fork:** enable Actions, make sure the Forward settings above are Actions secrets (the
-take-home does that when GitHub lets it), and add a ruleset on `main` that requires the `forward/predict` check (without
+`workshop connect` does that when GitHub lets it), and add a ruleset on `main` that requires the `forward/predict` check (without
 it, nothing stops a red pull request from merging). Deploying outside a Codespace needs `GITHUB_TOKEN` and
 `GITHUB_REPOSITORY` set, or use `--no-github` and a local prediction, as exercise 5 shows.
 

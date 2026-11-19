@@ -36,7 +36,7 @@ fi
 
 step "Forward lab"
 if [ -z "${FORWARD_USERNAME:-}" ] && ! grep -q '^FORWARD_USERNAME=.' .env 2>/dev/null; then
-  echo "No Forward lab yet. In the terminal, run:  workshop takehome"
+  echo "No Forward lab yet. In the terminal, run:  workshop connect"
   echo "It opens a one-click request, and a minute later this Codespace has a Forward lab of its own (free, 14 days)."
 fi
 
