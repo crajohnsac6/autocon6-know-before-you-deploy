@@ -33,7 +33,7 @@ out the live service, two routers away, and it's perfectly valid config. Catchin
 3. **Get a Forward lab:** `workshop connect`. It opens a one-click "Forward lab request" issue on this repository; GitHub
    Actions makes you a Forward network and an API key that sees only that network, and replies encrypted so only your
    Codespace can read it. A minute later the key is in your Codespace's `.env` (and, where GitHub allows it, in your
-   fork's Actions secrets for the pull request check). The lab is free and lasts 14 days; run it again after that for a
+   fork's `FORWARD_LAB` Actions secret for the pull request check, step 5). The lab is free and lasts 14 days; run it again after that for a
    fresh one.
 4. Then:
    ```
@@ -44,9 +44,10 @@ out the live service, two routers away, and it's perfectly valid config. Catchin
    and follow [`docs/exercises/`](docs/exercises/README.md) (exercise 0's first steps are these). The **Your lab** page
    (port 8765; `workshop status` prints its address) shows where you are and what to run next.
 5. **Before exercise 2, turn on the pull request check.** GitHub keeps a fork's workflows off until you enable them:
-   your fork's **Actions** tab → **I understand my workflows, go ahead and enable them**. Check that **Settings → Secrets
-   and variables → Actions** lists `FORWARD_URL`, `FORWARD_USERNAME`, `FORWARD_PASSWORD`, `FORWARD_NETWORK_ID` and
-   `WORKSHOP_LAB_ID` (`workshop connect` sets them when GitHub lets it; when it can't, it says so, and the values are in `.env`). Then, to make the
+   your fork's **Actions** tab → **I understand my workflows, go ahead and enable them**. The check needs your lab's key
+   as one Actions secret: GitHub usually doesn't let a Codespace set it, and then `workshop connect` prints the link. **Settings →
+   Secrets and variables → Actions → New repository secret**, name `FORWARD_LAB`, and paste the whole of `.env` (open it
+   in the editor, select all, copy). Do it again after `workshop connect --renew`. Then, to make the
    gate binding, **Settings → Rules → Rulesets → New branch ruleset** on `main`: require a pull request and the
    `forward/predict` status check. Without the ruleset the check still runs, but nothing stops a red pull request from merging.
 
@@ -66,8 +67,8 @@ WORKSHOP_LAB_ID=my-lab
 
 then `bash .devcontainer/bootstrap.sh`, `uv run workshop collector`, `uv run workshop doctor`, `uv run workshop up`.
 
-**The pull request gate on your fork:** enable Actions, make sure the Forward settings above are Actions secrets (the
-`workshop connect` does that when GitHub lets it), and add a ruleset on `main` that requires the `forward/predict` check (without
+**The pull request gate on your fork:** enable Actions, add the Forward settings above as Actions secrets (each on its
+own, or the five lines as one secret named `FORWARD_LAB`; where both are set, the separate ones win), and add a ruleset on `main` that requires the `forward/predict` check (without
 it, nothing stops a red pull request from merging). Deploying outside a Codespace needs `GITHUB_TOKEN` and
 `GITHUB_REPOSITORY` set, or use `--no-github` and a local prediction, as exercise 5 shows.
 

@@ -541,18 +541,28 @@ def run(root: Path, state_dir: Path, log, *, wait: float = 300, poll: float = 10
 
 
 def fork_secrets(gh: Any, repo: str, creds: dict[str, Any], log) -> bool:
-    """Give the fork's pull request check the same credentials, as Actions secrets. GitHub may not let a Codespace's token
-    do that; then say how to do it by hand (the values are in .env)."""
+    """Give the fork's pull request check the same credentials, as one Actions secret, FORWARD_LAB (the .env lines;
+    workshop/config.py reads it). A Codespace's token may not set Actions secrets (GitHub answers 403); then say exactly
+    how to add that one secret by hand."""
+    import logging
+
+    from workshop.config import LAB_SECRET
+
+    value = "\n".join([f"{k}={creds[k]}" for k in CREDENTIAL_KEYS] + ([f"{EXPIRES_KEY}={creds['expires_at']}"] if creds.get("expires_at") else []))
+    quiet = logging.getLogger("github")
+    level, quiet.level = quiet.level, logging.CRITICAL  # PyGithub logs the 403 itself; the lines below explain it
     try:
-        target = gh.get_repo(repo)
-        for k in CREDENTIAL_KEYS:
-            target.create_secret(k, str(creds[k]), secret_type="actions")
+        gh.get_repo(repo).create_secret(LAB_SECRET, value, secret_type="actions")
     except Exception as exc:  # noqa: BLE001 - optional: the lab works without it
-        log("   For the pull request check on your fork, add the five FORWARD_*/WORKSHOP_LAB_ID values from .env as Actions secrets")
         why = getattr(exc, "status", type(exc).__name__)
-        log(f"   (your fork > Settings > Secrets and variables > Actions). GitHub didn't let this Codespace do it ({why}).")
+        log(f"   One more step, for the pull request check on your fork (GitHub doesn't let a Codespace set it: {why}):")
+        log(f"     open https://github.com/{repo}/settings/secrets/actions/new")
+        log(f"     Name: {LAB_SECRET}   Secret: everything in .env (open .env in the editor, select all, copy, paste). Add secret.")
+        log("     Do it again after `workshop connect --renew`: the key changes.")
         return False
-    log(f"   Your fork's pull request check has them too (Actions secrets on {repo}).")
+    finally:
+        quiet.setLevel(level)
+    log(f"   Your fork's pull request check has it too (Actions secret {LAB_SECRET} on {repo}).")
     return True
 
 
