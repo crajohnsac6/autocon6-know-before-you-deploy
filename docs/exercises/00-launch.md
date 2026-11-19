@@ -1,21 +1,22 @@
-# 0 · Launch your lab, then take a baseline (9:00–9:30)
+# 0 · Launch your lab, then take a baseline
 
-*Lab first: about 25 minutes hands-on with a few short slides while the lab builds. Start `workshop up` as early as you
-can: it takes a few minutes. Then, as soon as it finishes, give Forward a baseline (below).*
+*About 25 minutes. Start `workshop up` as early as you can: it takes a few minutes, and you can read on while it
+builds. Then, as soon as it finishes, give Forward a baseline (below).*
 
 Configuration validation asks "is this config well formed?" **Behavioral validation** asks "what will the network do
-with it?" Today that second question gets its own stage in the pipeline, and it runs before deploy.
+with it?" Here that second question gets its own stage in the pipeline, and it runs before deploy.
 
 **Framework map.** You are starting the **network**: netlab builds it and gives every router its starting configuration. From then on every change goes through the **Executor** (NAPALM). See [the framework map](framework.md).
 
-**Why this matters.** Every later step depends on starting from a state you can name and rebuild. A lab of your own, with its own Forward network, means you can break things on purpose today. On a network that carries traffic you can't, which is part of why changes there feel risky.
+**Why this matters.** Every later step depends on starting from a state you can name and rebuild. A lab of your own, with its own Forward network, means you can break things on purpose. On a network that carries traffic you can't, which is part of why changes there feel risky.
 
 ## Core
 
-1. Your Codespace is open (from your seat page). Wait for setup to finish, which takes a few minutes. It is done when
+1. Your Codespace is open on your fork, and `workshop connect` has given it a Forward lab (the
+   [README](../../README.md#running-it-yourself) has both steps). Wait for setup to finish, which takes a few minutes. It is done when
    the terminal at the bottom shows a prompt starting with `(workshop)`, like this:
    ```
-   (workshop) @yourname ➜ /workspaces/autocon6-seat-NN (main) $
+   (workshop) @yourname ➜ /workspaces/autocon6-know-before-you-deploy (main) $
    ```
    If VS Code asks whether you trust the folder, choose **Trust Folder & Continue**.
    The **Your lab** page (port 8765) shows where you are and the next step. If the pane beside your editor is blank, open the **Ports** tab at the bottom, find port **8765**, and click the globe icon to open it in a browser tab. Keep that tab open. Lost it later? `workshop status` prints its address.
@@ -23,8 +24,9 @@ with it?" Today that second question gets its own stage in the pipeline, and it 
    ```
    workshop doctor
    ```
-   Every line should say **OK**, ending with **READY**. A FAIL line tells you what to do. If "you can push to this
-   seat repository" fails, accept your repository invitation, then reopen the Codespace from the seat page.
+   Every line should say **OK**, ending with **READY**. A FAIL line tells you what to do. If it says "No Forward lab here yet", run
+   `workshop connect`. If "you can push to this repository" fails, the Codespace is not on your own fork: fork the
+   repository and open a Codespace there.
 3. Start the lab:
    ```
    workshop up
@@ -85,22 +87,22 @@ They match: `lab/baseline/r4.eos` is netlab's rendered configuration, collected 
 
 ### What you just proved
 
-You have an isolated lab and a Forward network that only you can touch. Nothing you do today affects anyone else, and you can rebuild it in minutes.
+You have an isolated lab and a Forward network that only you can touch. Nothing you do affects anyone else, and you can rebuild it in minutes.
 
 **Which path?** *I'm Too Young to Die* (the Your lab page and the editor's panels) or *Hold My Beer* (the terminal, every step by hand, and the side quests): [pick one](README.md#pick-your-path), switch any time.
 
 **Behind?** The one must-do is `workshop up` running. The BGP check on r1 can wait.
 
-### Next, as soon as `workshop up` finishes: take the baseline (by 9:30)
+### Next, as soon as `workshop up` finishes: take the baseline
 
 Do exercise 1's [**Take the baseline, one step at a time**](01-baseline.md#take-the-baseline-one-step-at-a-time-10-min)
 now: `workshop baseline collect`, `upload`, `wait`, `check` (or the four buttons on the **Your lab** page), ending in
-every line **PASS**. The rest of exercise 1 comes after a short talk at 9:30.
+every line **PASS**. Then carry on with the rest of exercise 1.
 
 ## Finished early?
 
 - `workshop --help`: one short command per step of the loop.
-- Open `intent.md`: the change you've been asked to make today.
+- Open `intent.md`: the change you've been asked to make.
 - **Look at what netlab built**, with netlab itself (from the `lab/` folder: `cd lab`, and `cd ..` after):
   ```
   netlab status          # the lab, its ten nodes and their state
@@ -118,4 +120,4 @@ every line **PASS**. The rest of exercise 1 comes after a short talk at 9:30.
 
 ## Go deeper
 
-[netlab](https://netlab.tools/) and [containerlab](https://containerlab.dev/) built your lab from `lab/topology.yml`; [the framework map](framework.md) shows where each piece of today's loop sits. More: [Go deeper](go-deeper.md).
+[netlab](https://netlab.tools/) and [containerlab](https://containerlab.dev/) built your lab from `lab/topology.yml`; [the framework map](framework.md) shows where each piece of the loop sits. More: [Go deeper](go-deeper.md).

@@ -9,6 +9,7 @@ from __future__ import annotations
 import fcntl
 import hashlib
 import json
+import os
 import re
 import time
 from collections.abc import Callable
@@ -24,20 +25,21 @@ from workshop.forward import Forward
 WINDOW_MAX = timedelta(hours=3)
 
 
-def event_tz():
-    """The event's time zone (agenda.json, via the generated guide.json): a Codespace's clock runs in UTC, the room doesn't."""
+def local_tz():
+    """The zone ``--at HH:MM`` is read in: $TZ when it names one (``TZ=America/Chicago``), else this machine's own zone.
+    A Codespace's clock runs in UTC, so there HH:MM is UTC unless TZ is set; the lab page sends an absolute time instead."""
     from zoneinfo import ZoneInfo
 
     try:
-        return ZoneInfo(json.loads((Path(__file__).parent / "ui_assets" / "guide.json").read_text())["pace"]["tz"])
-    except Exception:  # noqa: BLE001 - no agenda: this machine's own zone
+        return ZoneInfo(os.environ["TZ"].lstrip(":"))
+    except Exception:  # noqa: BLE001 - no TZ, or not a zone name: this machine's own zone
         return datetime.now().astimezone().tzinfo
 
 
 def window(at: str, now: datetime | None = None) -> datetime:
-    """A change window's start: ``HH:MM`` (today, in the event's time zone) or an ISO time with its offset (the lab page
+    """A change window's start: ``HH:MM`` (today, in local_tz()) or an ISO time with its offset (the lab page
     sends one). Raises ValueError for a time that has passed or is more than three hours away."""
-    now = (now or datetime.now(UTC)).astimezone(event_tz())
+    now = (now or datetime.now(UTC)).astimezone(local_tz())
     at = at.strip()
     if re.fullmatch(r"\d{1,2}:\d{2}", at):
         hour, minute = (int(x) for x in at.split(":"))
@@ -49,18 +51,18 @@ def window(at: str, now: datetime | None = None) -> datetime:
             when = datetime.fromisoformat(at)
         except ValueError:
             raise ValueError(f"'{at}' is not a time: say HH:MM") from None
-        when = (when if when.tzinfo else when.replace(tzinfo=event_tz())).astimezone(event_tz())
+        when = (when if when.tzinfo else when.replace(tzinfo=local_tz())).astimezone(local_tz())
     if when <= now:
         raise ValueError(f"the window {when:%H:%M} has already started: pick a later time, or apply now")
     if when - now > WINDOW_MAX:
-        raise ValueError(f"the window {when:%H:%M} is more than {int(WINDOW_MAX.total_seconds() // 3600)} hours away: today's lab won't wait that long")
+        raise ValueError(f"the window {when:%H:%M} is more than {int(WINDOW_MAX.total_seconds() // 3600)} hours away: a lab won't wait that long")
     return when
 
 
 def wait_until(when: datetime, log, *, clock=time.time, sleep=time.sleep) -> None:
     """Wait for the window, saying how long is left once a minute (and nothing else: nothing is sent while waiting)."""
     while (left := when.timestamp() - clock()) > 0:
-        log(f"  {datetime.fromtimestamp(clock(), event_tz()):%H:%M:%S}: {int(left // 60)} min {int(left % 60)} s to the window; nothing sent yet")
+        log(f"  {datetime.fromtimestamp(clock(), local_tz()):%H:%M:%S}: {int(left // 60)} min {int(left % 60)} s to the window; nothing sent yet")
         sleep(min(60.0, left))
 
 

@@ -500,7 +500,7 @@ function renderLane(s) {
 
 function checkWords(check) {
   const c = (check || "PENDING").toUpperCase();
-  if (["QUEUED", "PENDING", "WAITING", "REQUESTED"].includes(c)) return "forward/predict is queued: GitHub has not started it yet. That is normal when many people open a PR at once, and it starts on its own. If it is still queued after about five minutes, tell a proctor: you can carry on with Predict my change here while it waits";
+  if (["QUEUED", "PENDING", "WAITING", "REQUESTED"].includes(c)) return "forward/predict is queued: GitHub has not started it yet. That is normal for a minute or two, and it starts on its own. If it is still queued after about five minutes, check that Actions is enabled on your fork; you can carry on with Predict my change here while it waits";
   if (c === "IN_PROGRESS") return "forward/predict is running: it asks Forward to predict your change (usually one to two minutes)";
   if (c === "SUCCESS") return "forward/predict passed";
   if (c === "FAILURE") return "forward/predict failed: open it to see why (a red check is a finding, not a fault)";
@@ -651,7 +651,7 @@ function renderGuide(s, key) {
       ? `<button class="warn" id="catch-yes" ${busy ? "disabled" : ""}>${key === "deploy" || key === "verify" || key === "done" ? "Yes, start a fresh loop" : "Yes, reset to the start of this step"}</button><button class="ghost" id="catch-no">Cancel</button>`
       : `<button class="ghost" id="catch-btn" ${busy ? "disabled" : ""}>${key === "deploy" || key === "verify" || key === "done" ? "Start a fresh loop" : "Catch me up"}</button>`}</div></div></div>`;
   const upd = s.updates && s.updates.available
-    ? `<div class="banner warn"><b>The workshop team pushed an update.</b> In the terminal: <code>git switch main && git pull && uv sync --frozen && bash .devcontainer/start-ui.sh --restart</code> (your branches and your change are untouched), then reload this page and carry on. <span class="muted">${esc((s.updates.files || []).join(", "))}</span></div>` : "";
+    ? `<div class="banner warn"><b><code>main</code> on GitHub has newer workshop files.</b> In the terminal: <code>git switch main && git pull && uv sync --frozen && bash .devcontainer/start-ui.sh --restart</code> (your branches and your change are untouched), then reload this page and carry on. <span class="muted">${esc((s.updates.files || []).join(", "))}</span></div>` : "";
   $("next").innerHTML = `
     ${upd}
     ${paceHtml(s)}
@@ -1014,7 +1014,7 @@ function renderChat(s) {
   const thread = threads.find((t) => t.id === current);
   const convo = $("convo"), atBottom = convo.scrollHeight - convo.scrollTop - convo.clientHeight < 40;
   if (!thread) {
-    convo.innerHTML = `<div class="empty"><p><b>Ask Forward AI about your network.</b></p><p>It answers from the snapshot you pick above — running NQE queries and path searches on your lab — not from memory. Try a suggestion below.</p><p class="muted">It sees your network's model, not the workshop. For "what do I do next?" or a step that failed, ask <code>@wsa4</code> in Slack: it knows the exercises and, once your seat is linked, your last <code>workshop</code> results.</p></div>`;
+    convo.innerHTML = `<div class="empty"><p><b>Ask Forward AI about your network.</b></p><p>It answers from the snapshot you pick above — running NQE queries and path searches on your lab — not from memory. Try a suggestion below.</p><p class="muted">It sees your network's model, not the workshop. For "what do I do next?", this page's next step and docs/exercises/stuck.md know the workshop.</p></div>`;
   } else {
     const sample = byId[(thread.label || "").split(" · ")[0]];
     convo.innerHTML = `<div class="muted" style="font-size:11px;text-align:center">grounded in snapshot ${esc(thread.snapshot)}${thread.label ? " · " + esc(thread.label) : ""}</div>` +

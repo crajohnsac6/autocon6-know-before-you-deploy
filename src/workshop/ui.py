@@ -109,7 +109,7 @@ WORKSHOP_PATHS = ("src/workshop", "examples", "docs/exercises", "requirements", 
 
 
 def _updates(root: Path) -> dict[str, Any]:
-    """Has the workshop team pushed an update to main that this Codespace doesn't have yet? Only the workshop's own files
+    """Does main on GitHub have workshop files this Codespace doesn't have yet (an update, or a sync from the upstream repository)? Only the workshop's own files
     count: the attendee's candidate and branches are never part of it. Display only; a failed fetch just shows nothing."""
     gitrepo.fetch_main(root)  # a failure raises: the caller keeps what was last known rather than flicker the banner
     files = gitrepo.changed_against_origin_main(root, WORKSHOP_PATHS)
@@ -158,7 +158,7 @@ def check_words(check: str) -> str:
     """What a forward/predict status means, in words, so a check that is waiting never looks like one that is stuck."""
     c = (check or "PENDING").upper()
     if c in ("QUEUED", "PENDING", "WAITING", "REQUESTED"):
-        return "forward/predict is queued: GitHub has not started it yet. That is normal when many people open a PR at once, and it starts on its own. If it is still queued after about five minutes, tell a proctor: you can carry on with Predict my change here while it waits"
+        return "forward/predict is queued: GitHub has not started it yet. That is normal for a minute or two, and it starts on its own. If it is still queued after about five minutes, check that Actions is enabled on your fork; you can carry on with Predict my change here while it waits"
     if c == "IN_PROGRESS":
         return "forward/predict is running: it asks Forward to predict your change (usually one to two minutes)"
     if c == "SUCCESS":

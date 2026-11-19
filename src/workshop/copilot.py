@@ -1,7 +1,7 @@
 """Let GitHub Copilot (agent mode) use Forward's MCP server on this lab's network.
 
 Forward serves its read-only analysis tools over MCP at ``/api/mcp`` (path traces, devices, interfaces, vulnerabilities,
-NQE): the same tools Forward AI uses. Authentication is the seat's own API key and secret, sent as HTTP Basic, and every
+NQE): the same tools Forward AI uses. Authentication is the lab's own API key and secret, sent as HTTP Basic, and every
 tool call needs the network ID. ``workshop mcp`` writes both, from the same settings the Forward SDK reads, into two files
 VS Code and Copilot pick up by themselves:
 
@@ -24,9 +24,9 @@ INSTRUCTIONS_FILE = Path(".github/copilot-instructions.md")
 
 INSTRUCTIONS = """# This lab, for GitHub Copilot
 
-You are helping an attendee of the AutoCon6 workshop "Know Before You Deploy". `AGENTS.md` has the rules of the repository.
+You are helping someone work through the workshop "Know Before You Deploy". `AGENTS.md` has the rules of the repository.
 
-**Forward's MCP tools** (server `forward`) read Forward's model of this attendee's lab network: path traces (`get_paths`),
+**Forward's MCP tools** (server `forward`) read Forward's model of this person's lab network: path traces (`get_paths`),
 devices, interfaces, vulnerabilities, and NQE queries (`nqe`, `generate_nqe_query`). Every tool call needs this lab's
 network ID:
 
@@ -65,7 +65,7 @@ def write(repo_root: Path, network_id: str, env: dict[str, str] | None = None) -
     url = env.get("FORWARD_URL", "").strip().rstrip("/")
     user, secret = env.get("FORWARD_USERNAME", "").strip(), env.get("FORWARD_PASSWORD", "").strip()
     if not (url and user and secret and network_id):
-        raise ValueError("needs FORWARD_URL, FORWARD_USERNAME, FORWARD_PASSWORD and FORWARD_NETWORK_ID (your seat's settings)")
+        raise ValueError("needs FORWARD_URL, FORWARD_USERNAME, FORWARD_PASSWORD and FORWARD_NETWORK_ID (your lab's settings: `workshop connect`)")
     mcp = repo_root / MCP_FILE
     mcp.parent.mkdir(parents=True, exist_ok=True)
     conf: dict = {}

@@ -1,4 +1,4 @@
-"""``workshop restore``: put r4's advertisements back to the baseline (instructor recovery)."""
+"""``workshop restore``: put r4's advertisements back to the baseline (the break-glass recovery)."""
 
 from __future__ import annotations
 

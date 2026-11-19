@@ -40,7 +40,7 @@ def _token() -> str:
 
 
 def repo_name(root: Path | None = None) -> str:
-    """owner/name of this seat repository: GITHUB_REPOSITORY (set in Codespaces and Actions), else the origin remote."""
+    """owner/name of this repository: GITHUB_REPOSITORY (set in Codespaces and Actions), else the origin remote."""
     name = os.environ.get("GITHUB_REPOSITORY", "")
     if name:
         return name
@@ -84,7 +84,7 @@ def _call(what: str, fn, *args, **kwargs):
 
 
 def can_push(root: Path | None = None) -> str:
-    """WRITE, MAINTAIN or ADMIN when this person can push to the seat repository; READ or NONE otherwise."""
+    """WRITE, MAINTAIN or ADMIN when this person can push to this repository; READ or NONE otherwise."""
     perms = repo(root).permissions
     if perms is None:
         return "NONE"
@@ -98,7 +98,7 @@ def comment(number: int, body: str) -> None:
 
 
 def open_ticket(title: str, body: str) -> int:
-    """Open a GitHub issue in the seat repository: the change ticket for a deploy made without a pull request."""
+    """Open a GitHub issue in this repository: the change ticket for a deploy made without a pull request."""
     issue = _call("opening the change ticket (a GitHub issue)", repo().create_issue, title=title[:200], body=body[:65000])
     return int(issue.number)
 

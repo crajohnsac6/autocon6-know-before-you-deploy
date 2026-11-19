@@ -26,7 +26,7 @@ text = Path("candidate/r4-bgp.eos").read_text()
 lines = [line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith("!")]
 print("candidate lines:", lines)
 
-# 1. Connect with your seat's token (from the Codespace's environment).
+# 1. Connect with your lab's key (from the Codespace's environment, or .env).
 c = ForwardClient.from_env(network_id=os.environ["FORWARD_NETWORK_ID"])
 
 # 2. Your baseline: the newest snapshot that is not a prediction. Its note says which lab and which fingerprint it is.

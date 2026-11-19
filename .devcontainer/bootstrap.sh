@@ -31,10 +31,12 @@ fi
 
 step "Headless collector (matching the Forward server release)"
 if [ -n "${FORWARD_URL:-}" ]; then
-  .venv/bin/workshop collector || echo "collector download deferred: run 'workshop collector' after your seat secrets are set"
+  .venv/bin/workshop collector || echo "collector download deferred: run 'workshop collector' once this Codespace has a Forward lab (workshop connect)"
 fi
 
 step "Forward lab"
+# gh on a fork may otherwise open pull requests on the upstream repository, where this fork's check never runs
+[ -n "${GITHUB_REPOSITORY:-}" ] && gh repo set-default "$GITHUB_REPOSITORY" >/dev/null 2>&1 || true
 if [ -z "${FORWARD_USERNAME:-}" ] && ! grep -q '^FORWARD_USERNAME=.' .env 2>/dev/null; then
   echo "No Forward lab yet. In the terminal, run:  workshop connect"
   echo "It opens a one-click request, and a minute later this Codespace has a Forward lab of its own (free, 14 days)."

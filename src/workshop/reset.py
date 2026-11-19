@@ -97,7 +97,7 @@ def run(settings: Settings, to: int, log) -> None:
         except Exception as exc:  # noqa: BLE001
             log(f"  (intent checks not registered: {type(exc).__name__}: {str(exc)[:100]})")
         if status != "PASS":
-            raise ResetError(f"the fresh baseline is {status}, not PASS: run `workshop reset --to {to}` again, or ask a proctor")
+            raise ResetError(f"the fresh baseline is {status}, not PASS: run `workshop reset --to {to}` again, then see docs/exercises/stuck.md")
     log("")
     if to == 5:
         log("  A fresh baseline makes any earlier prediction stale. To deploy this change now: the predict steps, then")

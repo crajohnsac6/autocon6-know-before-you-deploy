@@ -1,6 +1,6 @@
 # Working in this repository (for coding agents and the people using them)
 
-This is an AutoCon6 workshop seat: a four-router lab in this Codespace, a Forward network that models it, and a
+This is the AutoCon6 workshop "Know Before You Deploy": a four-router lab in this Codespace, a Forward network that models it, and a
 change loop that proves a change is safe **before** it reaches the routers. Bring any coding agent you like. These
 are the rules it has to work within, and the tools it can use.
 

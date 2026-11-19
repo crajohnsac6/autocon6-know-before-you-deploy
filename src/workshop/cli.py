@@ -311,12 +311,12 @@ def _doctor(settings: config.Settings, args) -> int:
             release = fwd.release()
             networks = fwd.network_ids()
         row(True, "Forward reachable", f"release {release}")
-        row(networks == [settings.network_id], "seat token sees exactly its own network", f"{networks}")
+        row(networks == [settings.network_id], "lab key sees exactly its own network", f"{networks}")
     except Exception as exc:  # noqa: BLE001 - doctor reports, it does not crash
         detail = f"{type(exc).__name__}: {str(exc)[:160]}"
-        if "401" in str(exc) or "unauthorized" in str(exc).lower():  # after a helper's Repair, the old token is revoked
-            detail += (" -- this Codespace still has the old seat token (a helper's Repair replaces it): Codespaces menu (bottom left) > "
-                       "Stop current codespace, open it again from the claim page, then workshop up and workshop doctor")
+        if "401" in str(exc) or "unauthorized" in str(exc).lower():  # a key that expired, was reaped or was replaced
+            detail += (" -- Forward doesn't accept this key any more. A lab from workshop connect lasts 14 days: "
+                       "workshop connect --renew gets a new key, then workshop doctor")
         row(False, "Forward reachable", detail)
     for tool, why in (("docker", ""), ("containerlab", ""), ("sshpass", "netlab checks the routers' SSH with it before configuring them")):
         row(shutil.which(tool) is not None, f"{tool} installed", "" if shutil.which(tool) else why)
@@ -343,8 +343,8 @@ def _doctor(settings: config.Settings, args) -> int:
             permission = github.can_push(settings.repo_root)
         except github.GitHubError as exc:
             permission = f"NONE ({exc})"
-        row(permission in ("WRITE", "MAINTAIN", "ADMIN"), "you can push to this seat repository",
-            permission if permission in ("WRITE", "MAINTAIN", "ADMIN") else f"{permission} -- accept your seat invitation, then reopen this Codespace from the seat repository")
+        row(permission in ("WRITE", "MAINTAIN", "ADMIN"), "you can push to this repository",
+            permission if permission in ("WRITE", "MAINTAIN", "ADMIN") else f"{permission} -- this Codespace isn't on your own fork: fork the repository and open a Codespace there")
     if lab_page_url():
         log(f"  Your lab page: {lab_page_url()}  (not loading? bash .devcontainer/start-ui.sh, wait a minute, reload)")
     log("READY" if ok else "NOT READY -- fix the FAIL lines above")
@@ -720,7 +720,7 @@ def _deploy(settings: config.Settings, args) -> int:
             except KeyboardInterrupt:
                 log("cancelled before the window: nothing was sent")
                 return EXIT["ERROR"]
-            log(f"{datetime.now(deploy.event_tz()):%H:%M:%S}: the window is open. Checking every gate again, then applying:")
+            log(f"{datetime.now(deploy.local_tz()):%H:%M:%S}: the window is open. Checking every gate again, then applying:")
         if step == "apply":
             deploy.apply(settings, evidence, args.confirm, log, check_github=not args.no_github, caveats=caveats, again=again)
             log("Sent and committed on r4" + (" WITH CAVEATS (Predict said FAIL)" if caveats else "") + ". Next: workshop deploy readback")
@@ -1291,7 +1291,7 @@ def _reset(settings: config.Settings, args) -> int:
         reset.run(settings, args.to, log)
     except Exception as exc:  # noqa: BLE001 - say what stopped it; every step before it is already done and safe to repeat
         log(f"workshop reset: {exc}")
-        log("Every step is safe to run again: `workshop reset --to N` once more, or ask a proctor.")
+        log("Every step is safe to run again: `workshop reset --to N` once more, then see docs/exercises/stuck.md.")
         return EXIT["ERROR"]
     return 0
 

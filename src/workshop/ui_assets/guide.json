@@ -64,7 +64,7 @@
     }
    ],
    "catchup": "Starts the lab if it isn't running (netlab builds and configures it). A running lab is left as it is.",
-   "why": "Every later step depends on starting from a state you can name and rebuild. A lab of your own, with its own Forward network, means you can break things on purpose today.",
+   "why": "Every later step depends on starting from a state you can name and rebuild. A lab of your own, with its own Forward network, means you can break things on purpose.",
    "trail": [
     {
      "id": "lab-doctor",
@@ -76,7 +76,7 @@
      ],
      "hints": [
       "Read the last line: READY or NOT READY.",
-      "A FAIL line names what is missing. \"settings missing\" means the Codespace was opened from the wrong place: delete it, accept the invitation, reopen from your seat page.",
+      "A FAIL line names what is missing. \"No Forward lab here yet\" means this Codespace hasn't asked for one: run workshop connect.",
       "`workshop doctor`. If only the containers line fails, run `workshop up`."
      ],
      "step": "doctor"
@@ -562,7 +562,7 @@
      "label": "Merge when green",
      "levels": [
       "Only a green check can merge.",
-      "Branch protection requires forward/predict to pass. Merging is the human approval, and it is bound to the exact candidate bytes: a later edit would not be deployed under it.",
+      "With the ruleset on main (README, step 5), forward/predict must pass before a merge. Merging is the human approval, and it is bound to the exact candidate bytes: a later edit would not be deployed under it.",
       "Squash and Merge on GitHub, then bring main up to date: `git switch main` and pull. Deploy needs the merged pull request's number."
      ],
      "hints": [

@@ -1,19 +1,18 @@
 # Know Before You Deploy: exercises
 
-Monday, November 16, 2026 · 9:00 AM–1:00 PM · hands-on
+About four hours, hands-on, at your own pace.
 
 **Baseline → Propose → Predict → Approve → Deploy → Verify**
 
-| Time | Section | Exercise | Checkpoint |
-|---|---|---|---|
-| 9:00–9:30 | Into the Lab | [0 · Launch your lab, then take a baseline](00-launch.md) | `workshop doctor` says READY; `workshop baseline check` all PASS |
-| 9:30–10:05 | The Missing Test Stage | [1 · Meet Forward, and write down what must remain true](01-baseline.md) | a path and a query you ran; any change undone, baseline PASS |
-| 10:05–10:45 | Build and Run the Change Pipeline | [2 · Your first change through the pipeline](02-pipeline.md) | a PR with a forward/predict result you can explain |
-| 10:45–11:15 | *Break* | | |
-| 11:15–12:00 | Break It Before You Deploy It | [3 · A change that looks safe](03-break-it.md) | a red check, and the line that caused it |
-| 12:00–12:30 | Fix It and Prove It | [4 · Fix it, and let it through the gate](04-fix-it.md) | a green check, PR merged |
-| 12:30–12:50 | Deploy and Verify | [5 · Deploy, collect, compare](05-deploy-verify.md) | `workshop verify compare` says MATCH |
-| 12:50–1:00 | Wrap-Up and Q&A | [6 · Beyond the lab](06-beyond.md) | |
+| Section | Exercise | Checkpoint |
+|---|---|---|
+| Into the Lab | [0 · Launch your lab, then take a baseline](00-launch.md) | `workshop doctor` says READY; `workshop baseline check` all PASS |
+| The Missing Test Stage | [1 · Meet Forward, and write down what must remain true](01-baseline.md) | a path and a query you ran; any change undone, baseline PASS |
+| Build and Run the Change Pipeline | [2 · Your first change through the pipeline](02-pipeline.md) | a PR with a forward/predict result you can explain |
+| Break It Before You Deploy It | [3 · A change that looks safe](03-break-it.md) | a red check, and the line that caused it |
+| Fix It and Prove It | [4 · Fix it, and let it through the gate](04-fix-it.md) | a green check, PR merged |
+| Deploy and Verify | [5 · Deploy, collect, compare](05-deploy-verify.md) | `workshop verify compare` says MATCH |
+| Beyond the lab | [6 · Beyond the lab](06-beyond.md) | |
 
 ## Where this fits in the NAF Framework
 
@@ -37,7 +36,7 @@ Pushing a change to the network is easy. Knowing what it will do is the hard par
 A syntax check tells you the config is legal. A reviewer reads a diff of one device. Neither can tell you that removing a
 line on r4 takes a route away from r2, r3 and r1 (two hops away) until the change is live. That gap is what this workshop is about.
 
-Today you put a test stage in front of the deploy. It asks what the **network** will do after the change, using a model
+Here you put a test stage in front of the deploy. It asks what the **network** will do after the change, using a model
 Forward builds from the real configs, before any router is touched. The lab is small, but the loop is the one you would run
 on a real change: **Baseline → Propose → Predict → Approve → Deploy → Verify**.
 
@@ -56,7 +55,7 @@ config, passes a hygiene check, and still takes the service down two routers awa
 not in a change window.
 
 Each exercise starts with **why it matters** and ends with **what you just proved**. If you only have a minute, read those
-two parts. The slides tell the same story: they are linked from your seat page.
+two parts. The slides tell the same story: [`slides/`](../../slides/) has the whole deck, with speaker notes.
 
 ## Pick your path
 
@@ -65,7 +64,7 @@ terminal run the same commands.
 
 - **I'm Too Young to Die** (new to CI, Git or automation): the **Your lab** page, where every step is a button with its
   command shown underneath; commit and open the pull request from the editor's panels; each exercise's **Behind?** line
-  is your shortcut; ask `@wsa4` in Slack for a hint, then another.
+  is your shortcut; [If something goes wrong](stuck.md) has the fixes.
 - **Hold My Beer** (you live in a terminal): every step by hand, reading the `→` calls each one prints (and their HTTP,
   `WORKSHOP_TRACE=http`); Git from the CLI; `src/workshop/` open beside you; the [side quests](side-quests.md): write
   your own test, try to cheat the gate, deploy a FAIL on purpose and back it out, or give Copilot Forward's tools
@@ -81,7 +80,7 @@ left, and the terminal at the bottom. Each Git step also has the equivalent term
 
 **What does each step leave behind, and what is it for?** [Artifacts](artifacts.md): every file and Forward record the loop makes, which are evidence a later step checks, and which are records for people (the change analysis, the pre- and post-change reports, the backout).
 
-**Ahead of the room?** [Side quests](side-quests.md).
+**Want more?** [Side quests](side-quests.md).
 
 **Want to read further, or understand a tool when it breaks?** [Go deeper](go-deeper.md): Forward's docs for each
 feature you use, netlab, containerlab, NAPALM, GitHub's checks and rulesets, and where to look when the platform
@@ -94,7 +93,7 @@ to netlab, NAPALM, the Forward collector, the Forward SDK and Git, and it prints
 doesn't, what each requirement kind checks exactly, the five result words, what the gates do and don't protect.
 
 The **Your lab** tab (port 8765) always shows where you are and the next command. Stuck? Look in
-[If something goes wrong](stuck.md). In the room, raise a hand.
+[If something goes wrong](stuck.md).
 
 **Curious about your network? Ask Forward AI.** Any time, in your own words: `workshop ask "which routers carry
 10.20.20.0/24, and from where?"` asks about your baseline. Add `--snapshot predicted` once you've run `workshop predict
@@ -103,13 +102,9 @@ explains and advises**, near the bottom of the Your lab page. Answers take a min
 two. It's an adviser: check what it says with `workshop path` or `workshop data`, because the requirements decide,
 not the AI. Nothing in the loop needs it.
 
-**Two helpers, different jobs** (three, if you bring Copilot: [SQ14](side-quests.md#sq14--copilot-with-forwards-tools) gives it Forward's read-only tools on your network). *Forward AI* (above) sees your network's model: ask it what the network does.
-*`@wsa4` in Slack* knows the workshop: the exercises, the commands, what each result means and, once you link your seat
-(`@wsa4 i am CODE`, code on your seat page), your last `workshop` results. Ask it "what next?" or "why did that fail?".
-It suggests the command; you run it. Want another hint? Reply in the same Slack thread with `@wsa4`: it remembers what it
-already told you there and goes one step further, up to the answer if you ask for it. A person comes over only when it's
-something you can't fix yourself.
+**Two assistants, different jobs.** *Forward AI* (above) sees your network's model: ask it what the network does.
+*Copilot*, if you have it, can read the exercises and your files, and with [SQ14](side-quests.md#sq14--copilot-with-forwards-tools) it gets Forward's
+read-only tools on your network too. Neither decides anything: the requirements do.
 
-**Working on your own?** The clock times in the headings are for the live room: ignore them and take your time. Each
-exercise's **Behind?** line is the shortest way through. When you reach `workshop verify compare` saying **MATCH** you have done
-the whole loop. Exercise 6 is optional.
+**How long?** About four hours end to end. Each exercise's **Behind?** line is the shortest way through. When you reach
+`workshop verify compare` saying **MATCH** you have done the whole loop. Exercise 6 is optional.

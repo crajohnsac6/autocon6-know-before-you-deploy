@@ -495,11 +495,11 @@ def _answer(chat_id: str, message) -> AiAnswer:
 
 @contextmanager
 def _ai_errors(what: str) -> Iterator[None]:
-    """Turn SDK errors from an AI call into AiUnavailable with a sentence an attendee can act on."""
+    """Turn SDK errors from an AI call into AiUnavailable with a sentence a person can act on."""
     try:
         yield
     except ForwardPermissionError as exc:
-        raise AiUnavailable(f"{what} is not enabled for this seat: {str(exc)[:200]}") from exc
+        raise AiUnavailable(f"{what} is not enabled for this lab: {str(exc)[:200]}") from exc
     except ForwardRateLimitError as exc:
         raise AiUnavailable(f"{what} is still answering your other question; try again when it finishes") from exc
     except ForwardTimeoutError as exc:

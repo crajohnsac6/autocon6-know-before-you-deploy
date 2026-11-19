@@ -41,8 +41,14 @@ out the live service, two routers away, and it's perfectly valid config. Catchin
    workshop doctor        # fix anything it flags
    workshop up            # netlab builds and configures the lab: 3 to 10 minutes
    ```
-   and follow [`docs/exercises/`](docs/exercises/README.md) from exercise 1. The **Your lab** page (port 8765;
-   `workshop status` prints its address) shows where you are and what to run next.
+   and follow [`docs/exercises/`](docs/exercises/README.md) (exercise 0's first steps are these). The **Your lab** page
+   (port 8765; `workshop status` prints its address) shows where you are and what to run next.
+5. **Before exercise 2, turn on the pull request check.** GitHub keeps a fork's workflows off until you enable them:
+   your fork's **Actions** tab → **I understand my workflows, go ahead and enable them**. Check that **Settings → Secrets
+   and variables → Actions** lists `FORWARD_URL`, `FORWARD_USERNAME`, `FORWARD_PASSWORD`, `FORWARD_NETWORK_ID` and
+   `WORKSHOP_LAB_ID` (`workshop connect` sets them when GitHub lets it; when it can't, it says so, and the values are in `.env`). Then, to make the
+   gate binding, **Settings → Rules → Rulesets → New branch ruleset** on `main`: require a pull request and the
+   `forward/predict` status check. Without the ruleset the check still runs, but nothing stops a red pull request from merging.
 
 ### On your own machine, with your own Forward
 
@@ -67,8 +73,8 @@ it, nothing stops a red pull request from merging). Deploying outside a Codespac
 
 ## What isn't here
 
-The event's own plumbing: the service that handed out seats, the room board, the Slack bot, and the tooling that
-provisioned 64 repositories and Forward networks. None of it is needed to run the loop.
+What the first run at AutoCon6 used to hand out 64 labs at once: the sign-up service, the room's progress board, a Slack
+bot, and the provisioning tooling. None of it is needed to run the loop: `workshop connect` replaces all of it.
 
 ## Honest notes
 

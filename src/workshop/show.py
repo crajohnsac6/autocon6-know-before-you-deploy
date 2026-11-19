@@ -87,7 +87,7 @@ class Heartbeat:
         self.last = now
         secs = now - self.start
         if self.give_up and secs > self.give_up:
-            tail = "This is much longer than usual. If nothing changes in the next few minutes, raise a hand (or run `workshop doctor` in a second terminal)."
+            tail = "This is much longer than usual. If nothing changes in the next few minutes, run `workshop doctor` in a second terminal, and see docs/exercises/stuck.md."
         elif self.usual and secs > self.usual:
             tail = f"Longer than usual (normally under {self.usual / 60:.0f} minutes): a busy Codespace is slower. Still working."
         else:

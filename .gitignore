@@ -15,7 +15,7 @@ lab/*.log
 **/data_sources.json
 *.zip
 
-# written at Codespace start by `workshop mcp`: Forward's MCP server with your seat's key, and your network ID for Copilot
+# written at Codespace start by `workshop mcp`: Forward's MCP server with your lab's key, and your network ID for Copilot
 .vscode/mcp.json
 .github/copilot-instructions.md
 

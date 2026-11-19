@@ -1,4 +1,4 @@
-# 4 · Fix it, and let it through the gate (12:00–12:30)
+# 4 · Fix it, and let it through the gate
 
 *About 30 minutes. Goal: a corrected change whose prediction passes every test, and an approval.*
 
@@ -16,7 +16,7 @@ advertisements: delete the `no network 10.20.20.0/24` line and keep these two un
       no network 10.20.30.0/24
       no network 10.20.40.0/24
 ```
-Save. (Stuck on which line? `@wsa4` gives hints, and the answer if you ask for it outright.) Then, in **Source Control**, commit with the message
+Save. (Stuck on which line? Exercise 3's change analysis names the one line that matters.) Then, in **Source Control**, commit with the message
 `Keep the live service advertisement` and press **Sync Changes** to push. VS Code asks you to confirm it: press **OK**.
 
 <details><summary>Or in the terminal</summary>

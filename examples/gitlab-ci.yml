@@ -1,5 +1,5 @@
 # UNTESTED EXAMPLE. Nobody has run this. It's the three predict steps from
-# .github/workflows/forward-predict.yml (the seat template's workflow), written for GitLab CI, to show the shape.
+# .github/workflows/forward-predict.yml (this repository's workflow), written for GitLab CI, to show the shape.
 #
 # One real difference from the GitHub workflow: a GitLab merge request pipeline runs the MR's own copy of
 # this file. The `git checkout` below takes the code and requirements from the target branch, but the MR

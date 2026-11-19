@@ -1,6 +1,6 @@
-# 1 · Meet Forward, and write down what must remain true (9:30–10:05)
+# 1 · Meet Forward, and write down what must remain true
 
-*You took the baseline at the end of exercise 0 (its four steps are below, for reference). From 9:30: find your way around Forward's model, read what must remain true, and see a change the Forward way.*
+*You took the baseline at the end of exercise 0 (its four steps are below, for reference). Now: find your way around Forward's model, read what must remain true, and see a change the Forward way.*
 
 **Framework map.** The **Collector** (Forward's headless collector) reads your routers and **Observability** (Forward's model) checks them against the requirements. The requirements are your **Intent**: what must stay true. See [the framework map](framework.md).
 

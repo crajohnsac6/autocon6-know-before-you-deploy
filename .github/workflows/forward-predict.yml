@@ -1,9 +1,9 @@
 # The change gate: Forward predicts the proposed candidate against this lab's baseline and judges it
-# against requirements/candidate.yml. The check "forward/predict" must pass before a PR can merge.
+# against requirements/candidate.yml. With a ruleset on main that requires "forward/predict", a PR merges only when it passes.
 #
 # Trust boundary: code and requirements come from the BASE branch; only candidate/r4-bgp.eos comes
 # from the pull request, and a PR that changes anything else fails. Pull requests from forks never
-# run here (they would not have this seat's Forward token anyway).
+# run here (they would not have this lab's Forward key anyway).
 name: forward-predict
 
 on:

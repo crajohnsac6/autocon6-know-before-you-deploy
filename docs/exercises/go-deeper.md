@@ -1,7 +1,7 @@
 # Go deeper
 
 Links out, for when you want more than the workshop shows. Each one says what you'll find and where it connects to
-what you did today. You never need any of them to finish the loop: they're jump-off points for afterwards, for a side
+what you did in the exercises. You never need any of them to finish the loop: they're jump-off points for afterwards, for a side
 quest, or for when something breaks and you want to understand why rather than just fix it.
 
 **Pick by what you want:**
@@ -22,7 +22,7 @@ quest, or for when something breaks and you want to understand why rather than j
   [framework map](framework.md) shows where each one sits in this repository. *Connects to: the whole loop.*
 - **[Forward Predict: overview](https://docs.fwd.app/latest/application/predict/overview/)** and
   **[reviewing Predict results](https://docs.fwd.app/latest/application/predict/reviewing-results/)**: Predict as the
-  product presents it. Today you drove it only through the SDK, from a pull request. *Connects to: exercises 2–4.*
+  product presents it. Here you drive it only through the SDK, from a pull request. *Connects to: exercises 2–4.*
 
 ## Forward, the parts you used
 
@@ -36,7 +36,7 @@ quest, or for when something breaks and you want to understand why rather than j
 | [Network collection](https://docs.fwd.app/latest/getting-started/network-collections/) | How Forward collects from real devices | The headless collector in `workshop baseline collect` |
 | [API reference](https://docs.fwd.app/latest/api/) ([NQE API](https://docs.fwd.app/latest/api/nqe/)) | Every endpoint the SDK wraps | The **HTTP** fold under each Forward SDK call on the Your lab page shows which ones you hit |
 | Python SDK: [forward-sdk on PyPI](https://pypi.org/project/forward-sdk/), [source](https://github.com/forwardnetworks/forward-python-sdk) | The library every `workshop` call into Forward goes through | `src/workshop/forward.py`, and every **→ Forward SDK** line in your terminal |
-| Go SDK: [source](https://github.com/forwardnetworks/forward-go-sdk) | The same API from Go | The seat and claim service (`seatd/`, not in your seat repo) |
+| Go SDK: [source](https://github.com/forwardnetworks/forward-go-sdk) | The same API from Go | The first run's admin tooling (not in this repository) |
 
 ## The tools in the loop
 
@@ -88,4 +88,3 @@ We didn't use or test these here, so there's no comparison. They're what people 
 
 - [Network Automation Forum](https://networkautomation.forum/): the community behind AutoCon.
 - [ipSpace.net blog](https://blog.ipspace.net/): Ivan Pepelnjak, netlab's author, on network automation and design.
-- During the event: `#ac6-ws-a4` in Slack, or `@wsa4` there for a quick answer.

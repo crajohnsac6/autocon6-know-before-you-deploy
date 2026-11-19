@@ -50,9 +50,9 @@ How Predict models a change, what each requirement kind really checks, and where
 ## The lab
 
 ### `workshop doctor`: is everything ready?
-**SDK** `networks.list()`: does your seat token reach Forward, and see exactly your own network? Then: docker, containerlab
+**SDK** `networks.list()`: does your lab's key reach Forward, and see exactly your own network? Then: docker, containerlab
 and sshpass installed, Netmiko importable (netlab configures the routers with it), the collector downloaded, the lab's
-containers against `lab/topology.yml` (**Docker SDK** `containers.list`), and whether you can push to your seat repository (**GitHub API**). Changes nothing.
+containers against `lab/topology.yml` (**Docker SDK** `containers.list`), and whether you can push to this repository (**GitHub API**). Changes nothing.
 
 ### `workshop up`: build the lab and its starting configuration
 1. **netlab** `up -p clab` (in `lab/`): netlab turns `lab/topology.yml` into a containerlab topology and starts the ten
@@ -259,8 +259,8 @@ It serves the **Your lab** tab on port 8765. Its buttons run the same `workshop`
 ## Iterating, deploying with caveats, and backing out
 
 ### `workshop predict history`
-Read-only. Every prediction you finished on this seat, oldest first: its hash, the lines it retires, the verdict, the requirements that
-did not pass, and what moved since the attempt before ("APP-EXISTING FAIL -> PASS"). Kept in the seat's state folder, outside the
+Read-only. Every prediction you finished in this lab, oldest first: its hash, the lines it retires, the verdict, the requirements that
+did not pass, and what moved since the attempt before ("APP-EXISTING FAIL -> PASS"). Kept in the lab's state folder, outside the
 repository. Deploy never reads it: only `evidence/evidence.json`, the newest, can deploy.
 
 ### `workshop deploy gates|apply --evidence evidence/evidence.json --no-github --confirm HASH --with-caveats ID,ID,...`

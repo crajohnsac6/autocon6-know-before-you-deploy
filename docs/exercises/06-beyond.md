@@ -1,4 +1,4 @@
-# 6 · Beyond the lab (12:50–1:00)
+# 6 · Beyond the lab
 
 **Framework map.** Every block here has a swap point: a different Collector or Executor, a second source of Intent, a different Orchestrator. [The framework map](framework.md) lists where each one lives and what is vendor-specific today.
 
@@ -34,7 +34,7 @@ report-only at first, and make the check required once you trust it. Keep AI as 
 - **More autonomy.** Let agents draft the change and iterate against Predict, and keep approval with a person.
 
 **Not tested here: what to validate first.** Everything above ran on four cEOS routers, one change at a time, one
-attendee per lab. Before you believe it bigger, find out: how long collection and Predict take on your network, how
+person per lab. Before you believe it bigger, find out: how long collection and Predict take on your network, how
 many changes are in flight at once (here, a new collection makes every open PR STALE), which of your platforms and
 change types Predict models correctly (it got an ACL edit wrong once; see [how it works](how-it-works.md#b-a-time-the-model-was-wrong)),
 and what an agent does when the check keeps failing.
@@ -109,5 +109,5 @@ These are questions for your network and for Forward, not facts we checked:
 
 ## Tell us how it went
 
-If you are testing this before the event, send Craig what was unclear, slow or broken, with your seat number. At the event,
-tell a proctor on your way out.
+Open an issue on [the repository](https://github.com/forwardnetworks/autocon6-know-before-you-deploy/issues) with what was
+unclear, slow or broken. Fixes are welcome too.

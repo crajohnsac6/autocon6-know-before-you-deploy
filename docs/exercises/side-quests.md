@@ -222,7 +222,7 @@ Every prediction you finished, with what moved between attempts. The Predict ste
 and run NQE queries, the same tools Forward AI uses. It still only advises: the requirements decide.
 
 **Set up for you:** when your Codespace starts, `workshop mcp` writes `.vscode/mcp.json` (Forward's MCP server, with your
-seat's key) and `.github/copilot-instructions.md` (your lab's network ID, which every tool call needs, and the rules).
+lab's key) and `.github/copilot-instructions.md` (your lab's network ID, which every tool call needs, and the rules).
 Both stay out of Git. Open **Copilot Chat**, choose **Agent** mode, and in the tools list turn on **forward** (start it if
 VS Code asks).
 

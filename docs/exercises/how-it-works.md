@@ -2,7 +2,7 @@
 
 This page is for people who already run Ansible or Nornir, already have a CI system, and want to know what's actually
 going on before they believe any of it. Everything here comes from the code in `src/workshop/` or from
-`docs/api-contract.md` in the workshop repository (not copied into your seat repo), the record of what Forward was
+`docs/api-contract.md` in the workshop's source repository (not published), the record of what Forward was
 tested to do while we built this. Where something wasn't tested, it says so.
 
 ## a. What Predict is, and what it isn't
@@ -106,11 +106,11 @@ What it doesn't do, honestly:
 - **The evidence isn't signed.** With `--pr` it comes from the artifact of a successful `forward/predict` run on the PR's
   head commit. With `--evidence --no-github` it's a local file and deploy trusts what it says.
 
-**The merge rule.** Seat repos get a ruleset from the admin tooling (`seatd/internal/ghadmin/ghadmin.go` in the workshop
-repository): changes to the default branch only
+**The merge rule.** A ruleset on `main` makes the gate binding: changes to the default branch only
 through a pull request, `forward/predict` required, squash merge only, no force-push or deletion, **0 required
-approving reviews**, and the status check is not strict (the branch needn't be up to date with main). Admins can bypass;
-attendees are invited with `push`, not admin, so they can't.
+approving reviews**, and the status check is not strict (the branch needn't be up to date with main). On your fork you
+add it yourself (the [README](../../README.md) says how); without it nothing stops a red pull request from merging. Admins
+can bypass a ruleset, and on your own fork you are the admin, so the rule binds you only as far as you let it.
 
 So in the workshop, "approval" is the person who clicks merge on a green check. In production I'd want more than that.
 These are suggestions, **not tested here**:
@@ -172,22 +172,22 @@ changes together, put both in one candidate; to test them in sequence, deploy an
 | Evidence bound to the candidate's hash, the baseline and the requirements' hash | One candidate file, one device |
 | Requirements read from the base branch, so a PR can't edit its own test | The `no network` scope check in `candidate.py` |
 | A CLI with distinct exit codes per outcome | `--confirm` with 7 hex characters as the "I reviewed it" step |
-| A pinned workflow (actions by commit SHA) with `contents: read` | Seat tokens, one Forward network per attendee |
+| A pinned workflow (actions by commit SHA) with `contents: read` | One Forward network and key per person |
 | Only a live PASS deploys; empty, unknown and timed-out are never green | netlab and containerlab as the network |
 | Predict, then render, then verify: model, device diff, reality | The state directory and its JSON step files |
 
 ## j. Copying the workflow
 
-`.github/workflows/forward-predict.yml` in your seat repository is the part most people will want. The trust boundary:
+`.github/workflows/forward-predict.yml` in your repository is the part most people will want. The trust boundary:
 
 - `on: pull_request` (not `pull_request_target`), and `permissions: contents: read`.
 - It checks out the **base** commit. Code and requirements come from there.
 - It fetches the PR head, fails (exit 2) if the PR changes anything outside `candidate/`, and copies only
   `candidate/r4-bgp.eos` from the head.
 - Every action is pinned to a commit SHA. Dependencies install with `uv sync --frozen` from the base branch's lockfile.
-- The job only runs when the PR's head repo is this repo. **Fork PRs never run the check**, so they can never merge
-  under the ruleset. That's deliberate: seat repos have one attendee, and a fork wouldn't have the seat's Forward token
-  anyway. If you take PRs from forks, you'll need a different design for secrets; we didn't build one.
+- The job only runs when the PR's head repo is this repo. **PRs from another fork never run the check**, so they can
+  never merge under the ruleset. That's deliberate: each fork has one person's lab, and someone else's fork wouldn't
+  have its Forward key anyway. Your own PRs, from a branch on your fork, run as usual. If you take PRs from forks, you'll need a different design for secrets; we didn't build one.
 - The three predict steps are separate job steps, and the evidence is uploaded as an artifact even when they fail.
 
 [`examples/gitlab-ci.yml`](../../examples/gitlab-ci.yml) is the same three steps for GitLab. It's untested.

@@ -1,4 +1,4 @@
-# 5 · Deploy, collect, compare (12:30–12:50)
+# 5 · Deploy, collect, compare
 
 *About 20 minutes. Goal: the exact predicted change on the routers, and proof that reality matched the prediction.*
 
@@ -88,7 +88,7 @@ docker exec clab-autocon6-r4 Cli -p 15 -c "configure session preview abort"
 
 **In a change window.** A real change goes in at an agreed time, not the moment it's approved. Try it on a later
 loop (or read it now): **Apply at the window** on the Your lab page, or
-`workshop deploy apply --pr N --confirm HASH --at HH:MM` (the room's time; the page allows up to 15 minutes ahead). It checks every gate now, waits, and checks them all
+`workshop deploy apply --pr N --confirm HASH --at HH:MM` (your time zone: a Codespace's clock is UTC, so prefix `TZ=America/Chicago` or your own zone, or give an ISO time with its offset; the page uses your browser's time and allows up to 15 minutes ahead). It checks every gate now, waits, and checks them all
 again when the window opens, against Forward's newest snapshot and the live routers. Change a router in between
 (`workshop link down` in a second terminal) and nothing is sent: the approval was for the network Forward predicted, not
 whatever it has become.

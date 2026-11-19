@@ -135,7 +135,7 @@ def baseline_close(status: str) -> list[str]:
         return ["", "What this means: the network does not meet its own baseline requirements, so a prediction would prove nothing.",
                 "Fix what is listed above (or `workshop restore`, then the baseline steps from `workshop baseline collect`) before you predict."]
     return ["", f"What this means: the baseline ended {status}, so Forward could not fully judge the network (see the lines above).",
-            "That is not the same as a failure: run the step that failed again, and ask a proctor if it repeats."]
+            "That is not the same as a failure: run the step that failed again; if it repeats, see docs/exercises/stuck.md."]
 
 
 def predict_close(status: str, failing: list[str]) -> list[str]:

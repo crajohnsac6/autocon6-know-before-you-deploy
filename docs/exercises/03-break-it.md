@@ -1,4 +1,4 @@
-# 3 · A change that looks safe (11:15–12:00)
+# 3 · A change that looks safe
 
 *About 45 minutes. Goal: watch the pipeline stop a regression that is perfectly valid configuration, then find
 exactly why.*
@@ -113,7 +113,7 @@ with it connected.
 The **Your lab** tab shows the same thing once the local predict steps have run: the service path in red, r1 with no
 route to `10.20.20.0/24`, and which advertisements the change retires.
 
-### Optional: what does Forward AI say? (instructor demo)
+### Optional: what does Forward AI say?
 
 The **forward/advice** check on your PR is Forward AI's Reviewer: what the change alters and what it would affect.
 `workshop explain` adds the Troubleshooter's answer. Did it get everything right? Asked with no context, a chat may

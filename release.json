@@ -4,7 +4,7 @@
   "napalm": "5.2.0",
   "pyeapi": "1.0.4",
   "collector": {
-    "source": "GET /api/software/client?type=HEADLESS_LINUX on the Forward server, as the seat user",
+    "source": "GET /api/software/client?type=HEADLESS_LINUX on the Forward server, as the lab's own user",
     "version_policy": "not pinned: download at setup and require the collector release to equal the Forward server release",
     "last_validated": "26.9.0-18"
   },
@@ -14,7 +14,7 @@
   "containerlab": "0.82.0",
   "template_source": {
     "repo": "autocon6-workshop",
-    "commit": "6a52802f4560ee9c5366453df2bec21e2560f003",
+    "commit": "c0c8b034f92169dce19cdd0de2149ff84edd6396",
     "dirty": false
   }
 }

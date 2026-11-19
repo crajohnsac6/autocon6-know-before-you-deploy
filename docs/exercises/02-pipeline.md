@@ -1,4 +1,4 @@
-# 2 · Your first change through the pipeline (10:05–10:45)
+# 2 · Your first change through the pipeline
 
 *About 40 minutes. Goal: see how a change travels from Git to Forward Predict and back to the pull request, and be
 able to explain every line of the result.*
@@ -17,8 +17,8 @@ let Forward tell you what happened. You'll undo it at the end.
 0. **Ask your own question.** Lab 1 used Forward's ready-made queries. This one is ours, in Git:
    `cat nqe/stale_bgp_advertisements.nqe`, then `workshop nqe nqe/stale_bgp_advertisements.nqe`. It looks at r4's BGP
    `network` statements and r4's routes, and lists the statements with no route behind them: `10.20.30.0/24` and
-   `10.20.40.0/24`. They advertise nothing and look exactly like the live `10.20.20.0/24` line. **That's today's change
-   request** (CHG-AC6-0001): retire them. It follows us all morning.
+   `10.20.40.0/24`. They advertise nothing and look exactly like the live `10.20.20.0/24` line. **That's the change
+   request** (CHG-AC6-0001): retire them. It runs through every exercise.
 
    **Then turn your path searches into intent checks.** In lab 1 you asked Forward path questions one at a time
    (`workshop path`, `workshop path --port 2222`). Write them down once, and Forward answers them on every snapshot by
@@ -100,7 +100,7 @@ gh pr create --fill
 
 ### Follow it through the pipeline (10 min)
 
-The **forward/predict** check starts on your PR. It takes about a minute. While it runs, open
+The **forward/predict** check starts on your PR (no check at all? Turn on your fork's Actions: [README](../../README.md#running-it-yourself), step 5). It takes about a minute. While it runs, open
 `.github/workflows/forward-predict.yml` (at the top of your repository) and find the three steps named **1.**, **2.**
 and **3.**:
 
