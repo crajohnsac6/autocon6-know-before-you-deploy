@@ -1,6 +1,6 @@
 # Know Before You Deploy: hands-on network CI/CD with Forward Predict
 
-The AutoCon6 workshop WS:A4 (Tucson, November 16, 2026), as the room ran it. Four routers, six host subnets, a pull
+First run as an AutoCon6 workshop (Tucson, November 2026). Four routers, six host subnets, a pull
 request, and a test stage that asks what the **network** will do after a change, before any router is touched.
 
 **Baseline → Propose → Predict → Approve → Deploy → Verify**
@@ -19,45 +19,50 @@ out the live service, two routers away, and it's perfectly valid config. Catchin
 | `candidate/`, `intent.md` | The change, and what it's supposed to do |
 | `.github/workflows/forward-predict.yml` | The pull request check: the three predict steps as three job steps |
 | `examples/` | A GitLab CI sketch, and the predict and upload steps written out by hand |
-| `slides/deck.md` | The deck's source, with the speaker notes inline |
+| [`slides/`](slides/README.md) | The slides, readable on GitHub with their speaker notes ([`deck.md`](slides/deck.md) is the reveal.js source) |
 
 ## Running it yourself
 
-You need three things the workshop handed out on the day:
+### In a GitHub Codespace (easiest)
 
-1. **A Forward network and an API key for it.** The workshop talks to Forward only through
-   [forward-python-sdk](https://github.com/forwardnetworks/forward-python-sdk). Put these in `.env` (or, in a Codespace,
-   as Codespaces secrets on your fork; the pull request check wants the same ones as Actions secrets):
+1. **Fork this repository**, then on your fork: **Code → Codespaces → Create codespace** (4 cores).
+2. **Import Arista's cEOS image, version 4.36.0.1F.** We can't redistribute it: download the 64-bit cEOS-lab image from
+   Arista with your own account, drag it into the Codespace, then `docker import <that file> ceos:4.36.0.1F` and
+   `bash .devcontainer/bootstrap.sh`.
+3. **Get a Forward lab:** `workshop takehome`. It opens a one-click "Lab request" issue on this repository; GitHub
+   Actions makes you a Forward network and an API key that sees only that network, and replies encrypted so only your
+   Codespace can read it. A minute later the key is in your Codespace's `.env` (and, where GitHub allows it, in your
+   fork's Actions secrets for the pull request check). The lab is free and lasts 14 days; run it again after that for a
+   fresh one.
+4. Then:
    ```
-   FORWARD_URL=https://fwd.app
-   FORWARD_USERNAME=<API key>
-   FORWARD_PASSWORD=<API secret>
-   FORWARD_NETWORK_ID=<your network's id>
-   WORKSHOP_LAB_ID=my-lab
+   workshop collector     # Forward's headless collector, matching the server's release
+   workshop doctor        # fix anything it flags
+   workshop up            # netlab builds and configures the lab: 3 to 10 minutes
    ```
-2. **The Arista cEOS image, version 4.36.0.1F.** We can't redistribute it. Download the 64-bit cEOS-lab 4.36.0.1F image from
-   Arista with your own account, then `docker import <that file> ceos:4.36.0.1F`.
-3. **A machine with Docker, 4 CPUs and 16 GB of memory** (Debian or Ubuntu; containerlab needs sudo, and your user in
-   the `clab_admins` group), or a 4-core GitHub Codespace on your fork.
+   and follow [`docs/exercises/`](docs/exercises/README.md) from exercise 1. The **Your lab** page (port 8765;
+   `workshop status` prints its address) shows where you are and what to run next.
 
-Then, with the cEOS image imported first:
+### On your own machine, with your own Forward
+
+You need Docker, 4 CPUs and 16 GB of memory (Debian or Ubuntu; containerlab needs sudo, and your user in the
+`clab_admins` group), the cEOS image above, and a Forward network with an API key that sees only that network. Put these
+in `.env`:
 
 ```
-bash .devcontainer/bootstrap.sh     # uv, netlab, containerlab (a Codespace runs this for you; run it again after importing cEOS)
-uv run workshop collector           # the headless collector, matching your Forward server's release
-uv run workshop doctor              # fix anything it flags
-uv run workshop up                  # netlab builds and configures the lab: 3 to 10 minutes
+FORWARD_URL=https://fwd.app
+FORWARD_USERNAME=<API key>
+FORWARD_PASSWORD=<API secret>
+FORWARD_NETWORK_ID=<your network's id>
+WORKSHOP_LAB_ID=my-lab
 ```
 
-`workshop doctor` expects the API key to see exactly one network, the lab's: use a user scoped to that network (that's
-how every seat was set up). In a Codespace the `workshop` command is already on your path. The **Your lab** page
-(`uv run workshop ui`, port 8765) shows where you are and what to run next. Then follow
-[`docs/exercises/`](docs/exercises/README.md) from exercise 1.
+then `bash .devcontainer/bootstrap.sh`, `uv run workshop collector`, `uv run workshop doctor`, `uv run workshop up`.
 
-**On a fork,** to get the pull request gate too: enable Actions, add the five settings above as Actions secrets, and add a
-ruleset on `main` that requires the `forward/predict` check (without it, nothing stops a red pull request from merging).
-Deploying outside a Codespace needs `GITHUB_TOKEN` and `GITHUB_REPOSITORY` set, or use `--no-github` and a local
-prediction, as exercise 5 shows.
+**The pull request gate on your fork:** enable Actions, make sure the Forward settings above are Actions secrets (the
+take-home does that when GitHub lets it), and add a ruleset on `main` that requires the `forward/predict` check (without
+it, nothing stops a red pull request from merging). Deploying outside a Codespace needs `GITHUB_TOKEN` and
+`GITHUB_REPOSITORY` set, or use `--no-github` and a local prediction, as exercise 5 shows.
 
 ## What isn't here
 

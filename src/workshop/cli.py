@@ -2,6 +2,7 @@
 makes, and ends with its evidence and the next step.
 
     workshop doctor                                      is everything ready?
+    workshop takehome                                    get a Forward lab of your own (in a Codespace on your fork)
     workshop up                                          netlab builds and configures the lab
     workshop baseline collect | upload | wait | check    Forward gets a model of the network, then the requirements are checked
     workshop predict changeset | run | check             (the PR check runs these three) predict a change and judge it
@@ -208,6 +209,9 @@ def build_parser() -> argparse.ArgumentParser:
     nq.add_argument("--snapshot", default="baseline", help="baseline | predicted | post | a snapshot id")
     nq.add_argument("--evidence", default="evidence/evidence.json", help="where 'predicted' comes from")
     sub.add_parser("collector", help="download the headless collector for the server's release")
+    tk = sub.add_parser("takehome", help="get a Forward lab of your own (in a Codespace on your fork of the repository)")
+    tk.add_argument("--wait", type=float, default=300, help="seconds to wait for the reply")
+    tk.add_argument("--renew", action="store_true", help="ask for a new key even if .env has one (a lost key, or a lab that was reaped)")
     sub.add_parser("intent", help="lab 2: turn your path searches into Forward intent checks, and see Forward's verdict on your baseline")
     sub.add_parser("status", help="where this lab is in the loop")
     lk = sub.add_parser("link", help="exercise 1's change: shut r2's link to r4 (down), or bring it back (up), over NAPALM")
@@ -229,6 +233,16 @@ def main(argv: list[str] | None = None) -> int:
         for line in report_.yolo_lines():
             log(line)
         return EXIT["ERROR"]
+    if args.command == "takehome":  # before settings load: it is what provides them
+        from workshop import takehome
+
+        try:
+            root = config.repo_root()
+        except config.SettingsError as exc:
+            log(f"workshop: {exc}")
+            return EXIT["ERROR"]
+        state = Path(os.path.expanduser(os.environ.get("WORKSHOP_STATE_DIR", "~/.local/state/autocon6")))
+        return takehome.run(root, state, log, wait=args.wait, renew=args.renew)
     try:
         settings = config.load()
     except config.SettingsError as exc:

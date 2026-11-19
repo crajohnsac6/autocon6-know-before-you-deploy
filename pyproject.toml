@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "AutoCon6 workshop: Know Before You Deploy - network CI/CD with Forward Predict"
 requires-python = ">=3.12"
 dependencies = [
-    "forward-sdk==0.1.38",
+    "forward-sdk==0.1.40",
     "napalm==5.2.0",
     "pyeapi==1.0.4",
     "pyyaml>=6.0",
@@ -14,6 +14,7 @@ dependencies = [
     "docker>=7.1",
     "gitpython>=3.1.45",
     "pygithub>=2.8",
+    "cryptography>=43",
 ]
 
 [project.scripts]

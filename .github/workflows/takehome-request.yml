@@ -1,0 +1,43 @@
+# Take-home labs (public repository only): answers a "Lab request" issue opened by `workshop takehome` in someone's
+# Codespace. It makes or renews that person's Forward lab in the AutoCon6 org and replies with the credentials encrypted
+# to the requesting Codespace's one-time key. Code: src/workshop/takehome.py.
+#
+# Safety: an issue starts this, but the code that runs is always this repository's default branch (an issue can't change
+# it), the issue text is only ever read as data by Python (never pasted into a shell), the requester's identity is the
+# issue author GitHub records, and the org admin key is an Actions secret: masked in logs, never given to forks.
+name: take-home lab request
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:  # one request per person at a time; nobody's request waits on anyone else's
+  group: takehome-${{ github.event.issue.user.id }}
+  cancel-in-progress: false
+
+jobs:
+  answer:
+    if: github.repository == 'forwardnetworks/autocon6-know-before-you-deploy' && contains(github.event.issue.body, '<!-- autocon6-takehome v1 -->')
+    runs-on: ubuntu-latest
+    environment: takehome  # the admin key lives in this environment: only the default branch may use it
+    timeout-minutes: 10
+    steps:
+      - name: Check out the default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - name: Install the workshop tools
+        run: uv sync --frozen --no-dev
+      - name: Make or renew the lab, reply encrypted, close the issue
+        run: uv run python -m workshop.takehome issue
+        env:
+          FORWARD_URL: https://fwd.app
+          FORWARD_ADMIN_KEY: ${{ secrets.TAKEHOME_FORWARD_KEY }}
+          FORWARD_ADMIN_SECRET: ${{ secrets.TAKEHOME_FORWARD_SECRET }}
+          GITHUB_TOKEN: ${{ github.token }}

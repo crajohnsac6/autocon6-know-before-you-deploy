@@ -399,15 +399,15 @@ wheels = [
 
 [[package]]
 name = "forward-sdk"
-version = "0.1.38"
+version = "0.1.40"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/98/b4/8536d4470f25edd5ae6822dd7e8820fed95cb38737a648db7a3fbde7f68e/forward_sdk-0.1.38.tar.gz", hash = "sha256:186e3c3d60d14eaf2dbf3bf13b0a9e9207ce4a78a88836c3415f9e59a36e42e5", size = 1362447, upload-time = "2026-11-15T22:01:49.259Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c9/fb/6c34254b71e3ccfb31e374a5de43fe930dcbe7db795878a891c940e6bd69/forward_sdk-0.1.40.tar.gz", hash = "sha256:2ce1af0e6a528272fdd2652e8fac9a7a0274434c638c2cdba94a775d8f35db5f", size = 1443758, upload-time = "2026-11-19T04:33:10.27Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dd/d0/5ac55f73b98502b2dc563fb4e751e5702d58db707349cf9f5573bb66d87a/forward_sdk-0.1.38-py3-none-any.whl", hash = "sha256:e577e2f5d70563638385b3598bccf0a7547512c0a62db2f48502d8bf42f589ef", size = 676212, upload-time = "2026-11-15T22:01:47.752Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/3f/64be75c979e5cba996653347f60dd0ab2f295778a6e0461ab9f5353daac5/forward_sdk-0.1.40-py3-none-any.whl", hash = "sha256:b64e902f40746326b23772bfc6822163abc1884113142092e5bd07c54a4f31df", size = 712035, upload-time = "2026-11-19T04:33:08.311Z" },
 ]
 
 [[package]]
@@ -1425,6 +1425,7 @@ name = "workshop"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "docker" },
     { name = "forward-sdk" },
     { name = "gitpython" },
@@ -1448,8 +1449,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=43" },
     { name = "docker", specifier = ">=7.1" },
-    { name = "forward-sdk", specifier = "==0.1.38" },
+    { name = "forward-sdk", specifier = "==0.1.40" },
     { name = "gitpython", specifier = ">=3.1.45" },
     { name = "napalm", specifier = "==5.2.0" },
     { name = "netmiko", extras = ["par4"], specifier = ">=4.7.0" },
